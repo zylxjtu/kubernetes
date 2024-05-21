@@ -698,7 +698,8 @@ var _ = sigDescribe(feature.WindowsHostProcessContainers, "[MinimumKubeletVersio
 						// Possibly related to https://github.com/microsoft/hcsshim/issues/1128 and
 						// https://github.com/microsoft/hcsshim/pull/1174 updating PATHEXT here doesn't
 						// seem address the issue.
-						Command: []string{"cmd", "/C", "copy", "c:\\hpc\\agnhost", "c:\\hpc\\agnhost.exe", "&&", "c:\\hpc\\agnhost.exe", "inclusterclient"},
+						Env:     []v1.EnvVar{{Name: "PATHEXT", Value: ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.CPL;;"}},
+						Command: []string{"powershell", "-c", "c:\\hpc\\agnhost", "inclusterclient"},
 					},
 				},
 				RestartPolicy: v1.RestartPolicyNever,
