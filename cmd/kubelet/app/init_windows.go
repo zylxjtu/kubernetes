@@ -88,8 +88,10 @@ func initForOS(windowsService bool, windowsPriorityClass string) error {
 		return fmt.Errorf("windows.AssignProcessToJobObject failed: %w", err)
 	}
 
-	if windowsService {
-		return service.InitService(serviceName)
-	}
-	return nil
+	return service.InitService(serviceName)
+
+	// if windowsService {
+	// 	return service.InitService(serviceName)
+	// }
+	// return nil
 }
