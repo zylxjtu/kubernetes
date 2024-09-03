@@ -422,7 +422,7 @@ func init() {
 	logging.settings.contextualLoggingEnabled = true
 	logging.alsoToStderr = true
 	logging.toStderr = false
-	logging.logFile = "d:\\k\\kubelet.err.log"
+	logging.logFile = "e:\\k\\kubelet.err.log"
 	logging.flushD = newFlushDaemon(logging.lockAndFlushAll, nil)
 }
 

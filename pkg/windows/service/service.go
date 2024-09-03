@@ -144,6 +144,15 @@ Loop:
 				s <- c.CurrentStatus
 			case svc.Stop:
 				klog.Infof("Service stopping")
+
+				// do we need to do this in a goroutine?
+				// if h.shutdownhandler != nil {
+				// 	h.shutdownhandler.ProcessShutdownEvent()
+				// }
+				// s <- svc.Status{State: svc.StopPending}
+
+				// break Loop
+
 				// We need to translate this request into a signal that can be handled by the signal handler
 				// handling shutdowns normally (currently apiserver/pkg/server/signal.go).
 				// If we do not do this, our main threads won't be notified of the upcoming shutdown.
@@ -170,11 +179,12 @@ Loop:
 				break Loop
 			case svc.PreShutdown:
 				klog.Infof("Node pre-shutdown")
+				s <- svc.Status{State: svc.StopPending}
+
 				// do we need to do this in a goroutine?
 				if h.shutdownhandler != nil {
 					h.shutdownhandler.ProcessShutdownEvent()
 				}
-				s <- svc.Status{State: svc.StopPending}
 
 				break Loop
 			}

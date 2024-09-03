@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -35,6 +36,7 @@ import (
 	"k8s.io/kubernetes/pkg/apis/scheduling"
 	"k8s.io/kubernetes/pkg/features"
 	kubeletconfig "k8s.io/kubernetes/pkg/kubelet/apis/config"
+	kubeletevents "k8s.io/kubernetes/pkg/kubelet/events"
 	"k8s.io/kubernetes/pkg/kubelet/eviction"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 	"k8s.io/kubernetes/pkg/kubelet/metrics"
@@ -260,6 +262,16 @@ func (m *managerImpl) ShutdownStatus() error {
 }
 
 func (m *managerImpl) ProcessShutdownEvent() error {
+	m.logger.V(1).Info("Shutdown manager detected new shutdown event", "event", "shutdown")
+
+	m.recorder.Event(m.nodeRef, v1.EventTypeNormal, kubeletevents.NodeShutdown, "Shutdown manager detected shutdown event")
+
+	m.nodeShuttingDownMutex.Lock()
+	m.nodeShuttingDownNow = true
+	m.nodeShuttingDownMutex.Unlock()
+
+	go m.syncNodeStatus()
+
 	m.logger.V(1).Info("Shutdown manager processing shutdown event")
 	activePods := m.getPods()
 
@@ -302,37 +314,40 @@ func (m *managerImpl) ProcessShutdownEvent() error {
 		var wg sync.WaitGroup
 		wg.Add(len(group.Pods))
 		for _, pod := range group.Pods {
-			go func(pod *v1.Pod, group podShutdownGroup) {
-				defer wg.Done()
+			// test only, skip the killing of pod of hpc
+			if !strings.Contains(pod.Name, "hpc") {
+				go func(pod *v1.Pod, group podShutdownGroup) {
+					defer wg.Done()
 
-				gracePeriodOverride := group.ShutdownGracePeriodSeconds
+					gracePeriodOverride := group.ShutdownGracePeriodSeconds
 
-				// If the pod's spec specifies a termination gracePeriod which is less than the gracePeriodOverride calculated, use the pod spec termination gracePeriod.
-				if pod.Spec.TerminationGracePeriodSeconds != nil && *pod.Spec.TerminationGracePeriodSeconds <= gracePeriodOverride {
-					gracePeriodOverride = *pod.Spec.TerminationGracePeriodSeconds
-				}
-
-				m.logger.V(1).Info("Shutdown manager killing pod with gracePeriod", "pod", klog.KObj(pod), "gracePeriod", gracePeriodOverride)
-
-				if err := m.killPodFunc(pod, false, &gracePeriodOverride, func(status *v1.PodStatus) {
-					// set the pod status to failed (unless it was already in a successful terminal phase)
-					if status.Phase != v1.PodSucceeded {
-						status.Phase = v1.PodFailed
+					// If the pod's spec specifies a termination gracePeriod which is less than the gracePeriodOverride calculated, use the pod spec termination gracePeriod.
+					if pod.Spec.TerminationGracePeriodSeconds != nil && *pod.Spec.TerminationGracePeriodSeconds <= gracePeriodOverride {
+						gracePeriodOverride = *pod.Spec.TerminationGracePeriodSeconds
 					}
-					status.Message = nodeShutdownMessage
-					status.Reason = nodeShutdownReason
-					podutil.UpdatePodCondition(status, &v1.PodCondition{
-						Type:    v1.DisruptionTarget,
-						Status:  v1.ConditionTrue,
-						Reason:  v1.PodReasonTerminationByKubelet,
-						Message: nodeShutdownMessage,
-					})
-				}); err != nil {
-					m.logger.V(1).Info("Shutdown manager failed killing pod", "pod", klog.KObj(pod), "err", err)
-				} else {
-					m.logger.V(1).Info("Shutdown manager finished killing pod", "pod", klog.KObj(pod))
-				}
-			}(pod, group)
+
+					m.logger.V(1).Info("Shutdown manager killing pod with gracePeriod", "pod", klog.KObj(pod), "gracePeriod", gracePeriodOverride)
+
+					if err := m.killPodFunc(pod, false, &gracePeriodOverride, func(status *v1.PodStatus) {
+						// set the pod status to failed (unless it was already in a successful terminal phase)
+						if status.Phase != v1.PodSucceeded {
+							status.Phase = v1.PodFailed
+						}
+						status.Message = nodeShutdownMessage
+						status.Reason = nodeShutdownReason
+						podutil.UpdatePodCondition(status, &v1.PodCondition{
+							Type:    v1.DisruptionTarget,
+							Status:  v1.ConditionTrue,
+							Reason:  v1.PodReasonTerminationByKubelet,
+							Message: nodeShutdownMessage,
+						})
+					}); err != nil {
+						m.logger.V(1).Info("Shutdown manager failed killing pod", "pod", klog.KObj(pod), "err", err)
+					} else {
+						m.logger.V(1).Info("Shutdown manager finished killing pod", "pod", klog.KObj(pod))
+					}
+				}(pod, group)
+			}
 		}
 
 		var (
