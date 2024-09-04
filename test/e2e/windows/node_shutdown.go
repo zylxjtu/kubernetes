@@ -267,9 +267,9 @@ func getGracePeriodOverrideTestPod(name string, node string, gracePeriod int64, 
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
 				{
-					Name:  name,
-					Image: "containerrollingregistry.azurecr.io/delay-shutdown:v3.0",
-					//Command: []string{"/agnhost", "pause"},
+					Name:    name,
+					Image:   "containerrollingregistry.azurecr.io/agnhost:2.46-windows-amd64-ltsc2022",
+					Command: []string{"/agnhost", "pause", "--delay-shutdown", "30"},
 				},
 			},
 			TerminationGracePeriodSeconds: &gracePeriod,
