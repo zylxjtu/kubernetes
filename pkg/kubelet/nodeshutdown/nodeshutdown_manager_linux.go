@@ -32,7 +32,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
-	"k8s.io/kubernetes/pkg/apis/scheduling"
 	"k8s.io/kubernetes/pkg/features"
 	kubeletconfig "k8s.io/kubernetes/pkg/kubelet/apis/config"
 	kubeletevents "k8s.io/kubernetes/pkg/kubelet/events"
@@ -423,71 +422,4 @@ func (m *managerImpl) periodRequested() time.Duration {
 		sum += period.ShutdownGracePeriodSeconds
 	}
 	return time.Duration(sum) * time.Second
-}
-
-func migrateConfig(shutdownGracePeriodRequested, shutdownGracePeriodCriticalPods time.Duration) []kubeletconfig.ShutdownGracePeriodByPodPriority {
-	if shutdownGracePeriodRequested == 0 {
-		return nil
-	}
-	defaultPriority := shutdownGracePeriodRequested - shutdownGracePeriodCriticalPods
-	if defaultPriority < 0 {
-		return nil
-	}
-	criticalPriority := shutdownGracePeriodRequested - defaultPriority
-	if criticalPriority < 0 {
-		return nil
-	}
-	return []kubeletconfig.ShutdownGracePeriodByPodPriority{
-		{
-			Priority:                   scheduling.DefaultPriorityWhenNoDefaultClassExists,
-			ShutdownGracePeriodSeconds: int64(defaultPriority / time.Second),
-		},
-		{
-			Priority:                   scheduling.SystemCriticalPriority,
-			ShutdownGracePeriodSeconds: int64(criticalPriority / time.Second),
-		},
-	}
-}
-
-func groupByPriority(shutdownGracePeriodByPodPriority []kubeletconfig.ShutdownGracePeriodByPodPriority, pods []*v1.Pod) []podShutdownGroup {
-	groups := make([]podShutdownGroup, 0, len(shutdownGracePeriodByPodPriority))
-	for _, period := range shutdownGracePeriodByPodPriority {
-		groups = append(groups, podShutdownGroup{
-			ShutdownGracePeriodByPodPriority: period,
-		})
-	}
-
-	for _, pod := range pods {
-		var priority int32
-		if pod.Spec.Priority != nil {
-			priority = *pod.Spec.Priority
-		}
-
-		// Find the group index according to the priority.
-		index := sort.Search(len(groups), func(i int) bool {
-			return groups[i].Priority >= priority
-		})
-
-		// 1. Those higher than the highest priority default to the highest priority
-		// 2. Those lower than the lowest priority default to the lowest priority
-		// 3. Those boundary priority default to the lower priority
-		// if priority of pod is:
-		//   groups[index-1].Priority <= pod priority < groups[index].Priority
-		// in which case we want to pick lower one (i.e index-1)
-		if index == len(groups) {
-			index = len(groups) - 1
-		} else if index < 0 {
-			index = 0
-		} else if index > 0 && groups[index].Priority > priority {
-			index--
-		}
-
-		groups[index].Pods = append(groups[index].Pods, pod)
-	}
-	return groups
-}
-
-type podShutdownGroup struct {
-	kubeletconfig.ShutdownGracePeriodByPodPriority
-	Pods []*v1.Pod
 }
