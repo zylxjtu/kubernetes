@@ -420,6 +420,7 @@ func init() {
 	commandLine.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
 
 	logging.settings.contextualLoggingEnabled = true
+
 	logging.flushD = newFlushDaemon(logging.lockAndFlushAll, nil)
 }
 
