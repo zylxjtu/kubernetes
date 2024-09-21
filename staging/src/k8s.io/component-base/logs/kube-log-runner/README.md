@@ -64,3 +64,11 @@ https://github.com/kubernetes/release/tree/master/images/build/go-runner.
 # Prebuilt binary
 
 The Kubernetes release archives contain kube-log-runner.
+
+Enhancements:
+
+Initial log-runner does not have log flushing, so the logs will not be able to be flused in time. Add the flushing (every 5 seconds)
+
+Added the log rotation, will rotate the logs when the log size exceed the maximum size (configurable), will also clean old logs which age exceed the time (cofigurable)
+
+Keep the file open for each write, close/reopen the fd only when needed during log rotation.
