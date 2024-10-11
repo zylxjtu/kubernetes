@@ -111,14 +111,17 @@ func createBasicStaticPod(dir, name, namespace string) error {
 					Name:  "regular1",
 					Image: imageutils.GetE2EImage(imageutils.BusyBox),
 					Command: []string{
-						"/bin/sh", "-c", "touch /tmp/healthy; sleep 10000",
+						//"/bin/sh", "-c", "touch /tmp/healthy; sleep 10000",
+						"powershell", "-c", "touch /tmp/healthy; sleep 10000",
 					},
 					Resources: v1.ResourceRequirements{
 						Requests: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("15Mi"),
+							//v1.ResourceMemory: resource.MustParse("15Mi"),
+							v1.ResourceMemory: resource.MustParse("100Mi"),
 						},
 						Limits: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("15Mi"),
+							//v1.ResourceMemory: resource.MustParse("15Mi"),
+							v1.ResourceMemory: resource.MustParse("100Mi"),
 						},
 					},
 					ReadinessProbe: &v1.Probe{
@@ -126,7 +129,8 @@ func createBasicStaticPod(dir, name, namespace string) error {
 						TimeoutSeconds:      2,
 						ProbeHandler: v1.ProbeHandler{
 							Exec: &v1.ExecAction{
-								Command: []string{"/bin/sh", "-c", "cat /tmp/healthy"},
+								//Command: []string{"/bin/sh", "-c", "cat /tmp/healthy"},
+								Command: []string{"powershell", "-c", "cat /tmp/healthy"},
 							},
 						},
 					},

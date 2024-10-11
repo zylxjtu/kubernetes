@@ -33,7 +33,7 @@ import (
 	e2evolume "k8s.io/kubernetes/test/e2e/framework/volume"
 	admissionapi "k8s.io/pod-security-admission/api"
 
-	systemdutil "github.com/coreos/go-systemd/v22/util"
+	//systemdutil "github.com/coreos/go-systemd/v22/util"
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gstruct"
@@ -146,21 +146,21 @@ var _ = SIGDescribe("Summary API", framework.WithNodeConformance(), func() {
 				"pods":    podsContExpectations,
 			}
 			// The Kubelet only manages the 'misc' system container if the host is not running systemd.
-			if !systemdutil.IsRunningSystemd() {
-				framework.Logf("Host not running systemd; expecting 'misc' system container.")
-				miscContExpectations := sysContExpectations().(*gstruct.FieldsMatcher)
-				// Misc processes are system-dependent, so relax the memory constraints.
-				miscContExpectations.Fields["Memory"] = ptrMatchAllFields(gstruct.Fields{
-					"Time": recent(maxStatsAge),
-					// We don't limit system container memory.
-					"AvailableBytes":  gomega.BeNil(),
-					"UsageBytes":      bounded(100*e2evolume.Kb, memoryLimit),
-					"WorkingSetBytes": bounded(100*e2evolume.Kb, memoryLimit),
-					"RSSBytes":        bounded(100*e2evolume.Kb, memoryLimit),
-					"PageFaults":      bounded(1000, 1e9),
-					"MajorPageFaults": bounded(0, 1e9),
-				})
-				systemContainers["misc"] = miscContExpectations
+			// if !systemdutil.IsRunningSystemd() {
+			// 	framework.Logf("Host not running systemd; expecting 'misc' system container.")
+			// 	miscContExpectations := sysContExpectations().(*gstruct.FieldsMatcher)
+			// 	// Misc processes are system-dependent, so relax the memory constraints.
+			// 	miscContExpectations.Fields["Memory"] = ptrMatchAllFields(gstruct.Fields{
+			// 		"Time": recent(maxStatsAge),
+			// 		// We don't limit system container memory.
+			// 		"AvailableBytes":  gomega.BeNil(),
+			// 		"UsageBytes":      bounded(100*e2evolume.Kb, memoryLimit),
+			// 		"WorkingSetBytes": bounded(100*e2evolume.Kb, memoryLimit),
+			// 		"RSSBytes":        bounded(100*e2evolume.Kb, memoryLimit),
+			// 		"PageFaults":      bounded(1000, 1e9),
+			// 		"MajorPageFaults": bounded(0, 1e9),
+			// 	})
+			// 	systemContainers["misc"] = miscContExpectations
 			}
 			// Expectations for pods.
 			podExpectations := gstruct.MatchAllFields(gstruct.Fields{

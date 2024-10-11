@@ -56,11 +56,11 @@ var NodePrePullImageList = sets.NewString(
 	busyboxImage,
 	"registry.k8s.io/e2e-test-images/busybox@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9",
 	imageutils.GetE2EImage(imageutils.Nginx),
-	imageutils.GetE2EImage(imageutils.Perl),
-	imageutils.GetE2EImage(imageutils.Nonewprivs),
+	//imageutils.GetE2EImage(imageutils.Perl),
+	//imageutils.GetE2EImage(imageutils.Nonewprivs),
 	imageutils.GetPauseImageName(),
-	imageutils.GetE2EImage(imageutils.NodePerfNpbEp),
-	imageutils.GetE2EImage(imageutils.NodePerfNpbIs),
+	//imageutils.GetE2EImage(imageutils.NodePerfNpbEp),
+	//imageutils.GetE2EImage(imageutils.NodePerfNpbIs),
 	imageutils.GetE2EImage(imageutils.Etcd),
 )
 
@@ -70,12 +70,13 @@ var NodePrePullImageList = sets.NewString(
 // So this function needs to be called after the extra envs are applied.
 func updateImageAllowList(ctx context.Context) {
 	// Architecture-specific image
-	if !isRunningOnArm64() {
-		// NodePerfTfWideDeep is only supported on x86_64, pulling in arm64 will fail
-		NodePrePullImageList = NodePrePullImageList.Insert(imageutils.GetE2EImage(imageutils.NodePerfTfWideDeep))
-	}
+	// if !isRunningOnArm64() {
+	// 	// NodePerfTfWideDeep is only supported on x86_64, pulling in arm64 will fail
+	// 	NodePrePullImageList = NodePrePullImageList.Insert(imageutils.GetE2EImage(imageutils.NodePerfTfWideDeep))
+	// }
 	// Union NodePrePullImageList and PrePulledImages into the framework image pre-pull list.
 	e2epod.ImagePrePullList = NodePrePullImageList.Union(commontest.PrePulledImages)
+	e2epod.ImagePrePullList = NodePrePullImageList.Union(commontest.WindowsPrePulledImages)
 	// Images from extra envs
 	e2epod.ImagePrePullList.Insert(getNodeProblemDetectorImage())
 	if sriovDevicePluginImage, err := getSRIOVDevicePluginImage(); err != nil {
