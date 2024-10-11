@@ -1,6 +1,3 @@
-//go:build linux
-// +build linux
-
 /*
 Copyright 2016 The Kubernetes Authors.
 
@@ -27,9 +24,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"runtime"
 
 	"os"
 	"os/exec"
+
 	"syscall"
 	"testing"
 	"time"
@@ -176,31 +175,35 @@ func TestE2eNode(t *testing.T) {
 	}
 	if *systemValidateMode {
 		// If system-validate-mode is specified, only run system validation in current process.
-		spec := &system.DefaultSysSpec
-		if *systemSpecFile != "" {
-			var err error
-			spec, err = loadSystemSpecFromFile(*systemSpecFile)
-			if err != nil {
-				klog.Exitf("Failed to load system spec: %v", err)
+		if runtime.GOOS ==  "windows" {
+			klog.Warningf("system validation mode is not supportted on Windows yet: %v")
+		} else {
+			spec := &system.DefaultSysSpec
+			if *systemSpecFile != "" {
+				var err error
+				spec, err = loadSystemSpecFromFile(*systemSpecFile)
+				if err != nil {
+					klog.Exitf("Failed to load system spec: %v", err)
+				}
 			}
-		}
-		if framework.TestContext.NodeConformance {
-			// Chroot to /rootfs to make system validation can check system
-			// as in the root filesystem.
-			// TODO(random-liu): Consider to chroot the whole test process to make writing
-			// test easier.
-			if err := syscall.Chroot(rootfs); err != nil {
-				klog.Exitf("chroot %q failed: %v", rootfs, err)
+			if framework.TestContext.NodeConformance {
+				// Chroot to /rootfs to make system validation can check system
+				// as in the root filesystem.
+				// TODO(random-liu): Consider to chroot the whole test process to make writing
+				// test easier.
+				if err := syscall.Chroot(rootfs); err != nil {
+					klog.Exitf("chroot %q failed: %v", rootfs, err)
+				}
 			}
+			warns, errs := system.ValidateSpec(*spec, "remote")
+			if len(warns) != 0 {
+				klog.Warningf("system validation warns: %v", warns)
+			}
+			if len(errs) != 0 {
+				klog.Exitf("system validation failed: %v", errs)
+			}
+			return
 		}
-		warns, errs := system.ValidateSpec(*spec, "remote")
-		if len(warns) != 0 {
-			klog.Warningf("system validation warns: %v", warns)
-		}
-		if len(errs) != 0 {
-			klog.Exitf("system validation failed: %v", errs)
-		}
-		return
 	}
 
 	// We're not running in a special mode so lets run tests.

@@ -63,44 +63,47 @@ func ExecCommand(name string, c execCommand) []string {
 
 	// The busybox time command doesn't support sub-second display.
 	// We have to use nmeter to get the milliseconds part.
-	timeCmd := "`date -u +%FT$(nmeter -d0 '%3t' | head -n1)Z`"
+	timeCmd := `powershell -Command "(Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ')"`
 	containerName := name
 	if c.ContainerName != "" {
 		containerName = c.ContainerName
 	}
-	containerLog := fmt.Sprintf("/persistent/%s.log", containerName)
+	containerLog := fmt.Sprintf("C:\\persistent\\%s.log", containerName)
 
-	fmt.Fprintf(&cmd, "touch %s; ", containerLog)
-	if c.ContainerName == "" {
-		fmt.Fprintf(&cmd, "cat %s >> /proc/1/fd/1; ", containerLog)
-	}
+	fmt.Fprintf(&cmd, "New-Item -ItemType File -Path %s; ", containerLog)
+	// if c.ContainerName == "" {
+	// 	fmt.Fprintf(&cmd, "Get-Content %s | Out-File -FilePath /proc/1/fd/1 -Append; ", containerLog)
+	// }
 
-	fmt.Fprintf(&cmd, "echo %s '%s Starting %d' | tee -a %s >> /proc/1/fd/1; ", timeCmd, name, c.StartDelay, containerLog)
-	fmt.Fprintf(&cmd, "_term() { sleep %d; echo %s '%s Exiting' | tee -a %s >> /proc/1/fd/1; exit %d; }; ", c.TerminationSeconds, timeCmd, name, containerLog, c.ExitCode)
-	fmt.Fprintf(&cmd, "trap _term TERM; ")
+	fmt.Fprintf(&cmd, `powershell -Command "(Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ') + ' %s Starting %d'" | Out-File -FilePath %s -Append; `, name, c.StartDelay, containerLog)
+	fmt.Fprintf(&cmd, `function _term { Start-Sleep -Seconds %d; powershell -Command "(Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ') + ' %s Exiting'" | Out-File -FilePath %s -Append; exit %d }; `, c.TerminationSeconds, name, containerLog, c.ExitCode)
+	//fmt.Fprintf(&cmd, "function _term { Start-Sleep -Seconds %d; echo %s '%s Exiting' | Out-File -FilePath %s -Append; exit %d }; ", c.TerminationSeconds, timeCmd, name, containerLog, c.ExitCode)
+	fmt.Fprintf(&cmd, "Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action { _term };")
 	if c.StartDelay != 0 {
 		fmt.Fprint(&cmd, sleepCommand(c.StartDelay))
 	}
 	// You can check started file to see if the container has started
-	fmt.Fprintf(&cmd, "touch started; ")
-	fmt.Fprintf(&cmd, "echo %s '%s Started' | tee -a %s >> /proc/1/fd/1; ", timeCmd, name, containerLog)
-	fmt.Fprintf(&cmd, "echo %s '%s Delaying %d' | tee -a %s >> /proc/1/fd/1; ", timeCmd, name, c.Delay, containerLog)
+	fmt.Fprintf(&cmd, "New-Item -ItemType File -Path started; ")
+	fmt.Fprintf(&cmd, `powershell -Command "(Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ') + ' %s Delaying %d'" | Out-File -FilePath %s -Append; `, name, c.Delay, containerLog)
+	//fmt.Fprintf(&cmd, "%s '+' ' %s Delaying %d' | Out-File -FilePath %s -Append; ", timeCmd, name, c.Delay, containerLog)
 	if c.Delay != 0 {
 		fmt.Fprint(&cmd, sleepCommand(c.Delay))
 	}
 	if c.LoopForever {
-		fmt.Fprintf(&cmd, "while true; do echo %s '%s Looping' | tee -a %s >> /proc/1/fd/1 ; sleep 1 ; done; ", timeCmd, name, containerLog)
+		fmt.Fprintf(&cmd, "while ($true) { echo %s '%s Looping' | Out-File -FilePath %s -Append; Start-Sleep -Seconds 1 }; ", timeCmd, name, containerLog)
 	}
-	fmt.Fprintf(&cmd, "echo %s '%s Exiting'  | tee -a %s >> /proc/1/fd/1; ", timeCmd, name, containerLog)
+	fmt.Fprintf(&cmd, `powershell -Command "(Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ') + ' %s Exiting'" | Out-File -FilePath %s -Append; `, name, containerLog)
 	fmt.Fprintf(&cmd, "exit %d", c.ExitCode)
-	return []string{"sh", "-c", cmd.String()}
+	str := cmd.String()
+
+	return []string{"powershell", "-c", str}
 }
 
 // sleepCommand returns a command that sleeps for the given number of seconds
 // in background and waits for it to finish so that the parent process can
 // handle signals.
 func sleepCommand(seconds int) string {
-	return fmt.Sprintf("exec sleep %d & wait $!; ", seconds)
+	return fmt.Sprintf("Start-Sleep -Seconds %d; ", seconds)
 }
 
 type containerOutput struct {

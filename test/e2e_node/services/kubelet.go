@@ -23,6 +23,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -90,7 +91,7 @@ func RunKubelet(featureGates map[string]bool) {
 
 const (
 	// KubeletRootDirectory specifies the directory where the kubelet runtime information is stored.
-	KubeletRootDirectory = "/var/lib/kubelet"
+	KubeletRootDirectory = "c:\\var\\lib\\kubelet"
 )
 
 // Health check url of kubelet
@@ -137,6 +138,10 @@ func baseKubeConfiguration(cfgPath string) (*kubeletconfig.KubeletConfiguration,
 		kc.EvictionMinimumReclaim = map[string]string{
 			"nodefs.available":  "5%",
 			"nodefs.inodesFree": "5%",
+		}
+
+		if runtime.GOOS == "windows" {
+			kc.ResolverConfig = ""
 		}
 
 		return kc, nil
@@ -214,6 +219,8 @@ func (e *E2EServices) startKubelet(featureGates map[string]bool) (*server, error
 
 	// Static Pods are in a per-test location, so we override them for tests.
 	kc.StaticPodPath = podPath
+
+	kc.PodLogsDir = "c:\\var\\log\\pods"
 
 	var killCommand, restartCommand *exec.Cmd
 	var isSystemd bool
@@ -309,6 +316,9 @@ func (e *E2EServices) startKubelet(featureGates map[string]bool) (*server, error
 	}
 	// add the flag to load config from a file
 	cmdArgs = append(cmdArgs, "--config", kubeletConfigPath)
+
+	// stop eviction manager
+	cmdArgs = append(cmdArgs, "--image-gc-high-threshold", "95")
 
 	// Override the default kubelet flags.
 	cmdArgs = append(cmdArgs, kubeletArgs...)

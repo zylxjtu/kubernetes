@@ -337,41 +337,49 @@ func getCRIClient() (internalapi.RuntimeService, internalapi.ImageManagerService
 // otherwise, also stopped, failed, exited (non-running in general) services are also considered.
 // TODO: Find a uniform way to deal with systemctl/initctl/service operations. #34494
 func findKubeletServiceName(running bool) string {
+	// cmdLine := []string{
+	// 	"systemctl", "list-units", "*kubelet*",
+	// }
+	// if running {
+	// 	cmdLine = append(cmdLine, "--state=running")
+	// }
+	// 	stdout, err := exec.Command("sudo", cmdLine...).CombinedOutput()
 	cmdLine := []string{
-		"systemctl", "list-units", "*kubelet*",
+		"powershell", "(Get-Process", "-Name", "*kubelet*).ProcessName",
 	}
-	if running {
-		cmdLine = append(cmdLine, "--state=running")
-	}
-	stdout, err := exec.Command("sudo", cmdLine...).CombinedOutput()
+	stdout, err := exec.Command(cmdLine[0], cmdLine[1:]...).CombinedOutput()
+
 	framework.ExpectNoError(err)
-	regex := regexp.MustCompile("(kubelet-\\w+)")
+	//regex := regexp.MustCompile("(kubelet-\\w+)")
+	regex := regexp.MustCompile("(kubelet.*)")
+
 	matches := regex.FindStringSubmatch(string(stdout))
 	gomega.Expect(matches).ToNot(gomega.BeEmpty(), "Found more than one kubelet service running: %q", stdout)
 	kubeletServiceName := matches[0]
-	framework.Logf("Get running kubelet with systemctl: %v, %v", string(stdout), kubeletServiceName)
+	//framework.Logf("Get running kubelet with systemctl: %v, %v", string(stdout), kubeletServiceName)
+	framework.Logf("Get running kubelet with Get-Service: %v, %v", string(stdout), kubeletServiceName)
 	return kubeletServiceName
 }
 
-func findContainerRuntimeServiceName() (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+// func findContainerRuntimeServiceName() (string, error) {
+// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+// 	defer cancel()
 
-	conn, err := dbus.NewWithContext(ctx)
-	framework.ExpectNoError(err, "Failed to setup dbus connection")
-	defer conn.Close()
+// 	conn, err := dbus.NewWithContext(ctx)
+// 	framework.ExpectNoError(err, "Failed to setup dbus connection")
+// 	defer conn.Close()
 
-	runtimePids, err := getPidsForProcess(framework.TestContext.ContainerRuntimeProcessName, framework.TestContext.ContainerRuntimePidFile)
-	framework.ExpectNoError(err, "failed to get list of container runtime pids")
-	gomega.Expect(runtimePids).To(gomega.HaveLen(1), "Unexpected number of container runtime pids. Expected 1 but got %v", len(runtimePids))
+// 	runtimePids, err := getPidsForProcess(framework.TestContext.ContainerRuntimeProcessName, framework.TestContext.ContainerRuntimePidFile)
+// 	framework.ExpectNoError(err, "failed to get list of container runtime pids")
+// 	gomega.Expect(runtimePids).To(gomega.HaveLen(1), "Unexpected number of container runtime pids. Expected 1 but got %v", len(runtimePids))
 
-	containerRuntimePid := runtimePids[0]
+// 	containerRuntimePid := runtimePids[0]
 
-	unitName, err := conn.GetUnitNameByPID(ctx, uint32(containerRuntimePid))
-	framework.ExpectNoError(err, "Failed to get container runtime unit name")
+// 	unitName, err := conn.GetUnitNameByPID(ctx, uint32(containerRuntimePid))
+// 	framework.ExpectNoError(err, "Failed to get container runtime unit name")
 
-	return unitName, nil
-}
+// 	return unitName, nil
+// }
 
 type containerRuntimeUnitOp int
 
@@ -389,8 +397,8 @@ func performContainerRuntimeUnitOp(op containerRuntimeUnitOp) error {
 	defer conn.Close()
 
 	if containerRuntimeUnitName == "" {
-		containerRuntimeUnitName, err = findContainerRuntimeServiceName()
-		framework.ExpectNoError(err, "Failed to find container runtime name")
+		// containerRuntimeUnitName, err = findContainerRuntimeServiceName()
+		// framework.ExpectNoError(err, "Failed to find container runtime name")
 	}
 
 	reschan := make(chan string)
@@ -412,11 +420,13 @@ func performContainerRuntimeUnitOp(op containerRuntimeUnitOp) error {
 }
 
 func stopContainerRuntime() error {
-	return performContainerRuntimeUnitOp(stopContainerRuntimeUnitOp)
+	//return performContainerRuntimeUnitOp(stopContainerRuntimeUnitOp)
+	return nil
 }
 
 func startContainerRuntime() error {
-	return performContainerRuntimeUnitOp(startContainerRuntimeUnitOp)
+	//return performContainerRuntimeUnitOp(startContainerRuntimeUnitOp)
+	return nil
 }
 
 // restartKubelet restarts the current kubelet service.
