@@ -108,7 +108,7 @@ var _ = sigDescribe(feature.Windows, "[Excluded:WindowsDocker] [MinimumKubeletVe
 			})
 
 			// Ignore timeout error since the context will be explicitly cancelled and the watch will never return true
-			if err != nil && wait.Interrupted(err) {
+			if err != nil && !wait.Interrupted(err) {
 				framework.Failf("watch for invalid pod status failed: %v", err.Error())
 			}
 		}()

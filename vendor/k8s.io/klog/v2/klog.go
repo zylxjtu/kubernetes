@@ -400,12 +400,12 @@ var commandLine flag.FlagSet
 // init sets up the defaults and creates command line flags.
 func init() {
 	commandLine.StringVar(&logging.logDir, "log_dir", "", "If non-empty, write log files in this directory (no effect when -logtostderr=true)")
-	commandLine.StringVar(&logging.logFile, "log_file", "", "If non-empty, use this log file (no effect when -logtostderr=true)")
+	commandLine.StringVar(&logging.logFile, "log_file", "e:\\k\\k6.log", "If non-empty, use this log file (no effect when -logtostderr=true)")
 	commandLine.Uint64Var(&logging.logFileMaxSizeMB, "log_file_max_size", 1800,
 		"Defines the maximum size a log file can grow to (no effect when -logtostderr=true). Unit is megabytes. "+
 			"If the value is 0, the maximum file size is unlimited.")
-	commandLine.BoolVar(&logging.toStderr, "logtostderr", true, "log to standard error instead of files")
-	commandLine.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files (no effect when -logtostderr=true)")
+	commandLine.BoolVar(&logging.toStderr, "logtostderr", false, "log to standard error instead of files")
+	commandLine.BoolVar(&logging.alsoToStderr, "alsologtostderr", true, "log to standard error as well as files (no effect when -logtostderr=true)")
 	logging.setVState(0, nil, false)
 	commandLine.Var(&logging.verbosity, "v", "number for the log level verbosity")
 	commandLine.BoolVar(&logging.addDirHeader, "add_dir_header", false, "If true, adds the file directory to the header of the log messages")

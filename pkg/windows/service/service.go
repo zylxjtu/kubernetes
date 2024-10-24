@@ -130,6 +130,10 @@ func SetPreShutdownHandler(preshutdownhandler PreshutdownHandler) {
 	thehandler.preshutdownHandler = preshutdownhandler
 }
 
+func IsServiceInitialized() bool {
+	return thehandler != nil
+}
+
 func (h *handler) Execute(_ []string, r <-chan svc.ChangeRequest, s chan<- svc.Status) (bool, uint32) {
 	s <- svc.Status{State: svc.StartPending, Accepts: 0}
 	// Unblock initService()

@@ -47,7 +47,6 @@ import (
 
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows/registry"
-	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/mgr"
 )
 
@@ -118,10 +117,10 @@ func NewManager(conf *Config) (Manager, lifecycle.PodAdmitHandler) {
 		conf.Clock = clock.RealClock{}
 	}
 	manager := &managerImpl{
-		logger:                           conf.Logger,
-		probeManager:                     conf.ProbeManager,
-		recorder:                         conf.Recorder,
-		volumeManager:                    conf.VolumeManager,
+		logger:       conf.Logger,
+		probeManager: conf.ProbeManager,
+		recorder:     conf.Recorder,
+		//volumeManager:                    conf.VolumeManager,
 		nodeRef:                          conf.NodeRef,
 		getPods:                          conf.GetPodsFunc,
 		killPodFunc:                      conf.KillPodFunc,
@@ -193,24 +192,28 @@ func (m *managerImpl) Start() error {
 // Check the return value, maybe return error only
 func (m *managerImpl) start() (chan struct{}, error) {
 	// Process the shutdown only when it is running as a windows service
-	isservice, err := svc.IsWindowsService()
-	if err != nil || !isservice {
-		return nil, errors.Wrapf(err, "%s is NOT running as a Windows service", serviceKubelet)
-	}
+	m.logger.V(1).Info("Shutdown manager entering start")
 
+	isServiceIntialized := service.IsServiceInitialized()
+	m.logger.V(1).Info("is service check", "isServiceIntialized", isServiceIntialized)
+	if !isServiceIntialized {
+		return nil, errors.Errorf("%s is NOT running as a Windows service", serviceKubelet)
+	}
+	m.logger.V(1).Info("Shutdown manage finished checking if running as a service")
 	// Update the registry key to add the kubelet dependencies to the existing order
 	mgr, err := mgr.Connect()
 	if err != nil {
 		return nil, errors.Wrapf(err, "Could not connect to service manager")
 	}
 	defer mgr.Disconnect()
-
+	m.logger.V(1).Info("Shutdown manage finished connecting to service manager")
 	s, err := mgr.OpenService(serviceKubelet)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Could not access service %s", serviceKubelet)
 	}
 	defer s.Close()
 
+	m.logger.V(1).Info("Shutdown manager trying to get reg key")
 	config, err := s.Config()
 	if err != nil {
 		return nil, errors.Wrapf(err, "Could not access config of service %s", serviceKubelet)
@@ -229,8 +232,13 @@ func (m *managerImpl) start() (chan struct{}, error) {
 		return nil, errors.Wrapf(err, "Could not access registry value %s", shutdownOrderStringValue)
 	}
 
+	m.logger.V(1).Info("Shutdown manager get existing orders", "existingorders", existingOrders)
+
 	// Add the kubelet dependencies to the existing order
 	newOrders := addToExistingOrder(config.Dependencies, existingOrders)
+
+	m.logger.V(1).Info("Shutdown manager created new orders", "neworders", newOrders)
+
 	err = key.SetStringsValue("PreshutdownOrder", newOrders)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Could not set registry %s to be new value %s", shutdownOrderStringValue, newOrders)
@@ -239,7 +247,7 @@ func (m *managerImpl) start() (chan struct{}, error) {
 	// If the preshutdown timeout is less than periodRequested, attempt to update the value to periodRequested.
 	preshutdownInfo, err := service.QueryPreShutdownInfo(s.Handle)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Could not query preshutdown info")
 	}
 
 	m.logger.V(1).Info("Shutdown manager get current preshutdown info", "PreshutdownTimeout", preshutdownInfo.PreshutdownTimeout)
@@ -365,9 +373,9 @@ func (m *managerImpl) ProcessShutdownEvent() error {
 		// to terminate before proceeding to the next group.
 		var groupTerminationWaitDuration = time.Duration(group.ShutdownGracePeriodSeconds) * time.Second
 		var (
-			doneCh         = make(chan struct{})
-			timer          = m.clock.NewTimer(groupTerminationWaitDuration)
-			ctx, ctxCancel = context.WithTimeout(context.Background(), groupTerminationWaitDuration)
+			doneCh       = make(chan struct{})
+			timer        = m.clock.NewTimer(groupTerminationWaitDuration)
+			_, ctxCancel = context.WithTimeout(context.Background(), groupTerminationWaitDuration)
 		)
 		go func() {
 			defer close(doneCh)
@@ -377,21 +385,21 @@ func (m *managerImpl) ProcessShutdownEvent() error {
 			// let's wait until all the volumes are unmounted from all the pods before
 			// continuing to the next group. This is done so that the CSI Driver (assuming
 			// that it's part of the highest group) has a chance to perform unmounts.
-			if err := m.volumeManager.WaitForAllPodsUnmount(ctx, group.Pods); err != nil {
-				var podIdentifiers []string
-				for _, pod := range group.Pods {
-					podIdentifiers = append(podIdentifiers, fmt.Sprintf("%s/%s", pod.Namespace, pod.Name))
-				}
+			// if err := m.volumeManager.WaitForAllPodsUnmount(ctx, group.Pods); err != nil {
+			// 	var podIdentifiers []string
+			// 	for _, pod := range group.Pods {
+			// 		podIdentifiers = append(podIdentifiers, fmt.Sprintf("%s/%s", pod.Namespace, pod.Name))
+			// 	}
 
-				// Waiting for volume teardown is done on a best basis effort,
-				// report an error and continue.
-				//
-				// Depending on the user provided kubelet configuration value
-				// either the `timer` will tick and we'll continue to shutdown the next group, or,
-				// WaitForAllPodsUnmount will timeout, therefore this goroutine
-				// will close doneCh and we'll continue to shutdown the next group.
-				m.logger.Error(err, "Failed while waiting for all the volumes belonging to Pods in this group to unmount", "pods", podIdentifiers)
-			}
+			// 	// Waiting for volume teardown is done on a best basis effort,
+			// 	// report an error and continue.
+			// 	//
+			// 	// Depending on the user provided kubelet configuration value
+			// 	// either the `timer` will tick and we'll continue to shutdown the next group, or,
+			// 	// WaitForAllPodsUnmount will timeout, therefore this goroutine
+			// 	// will close doneCh and we'll continue to shutdown the next group.
+			// 	m.logger.Error(err, "Failed while waiting for all the volumes belonging to Pods in this group to unmount", "pods", podIdentifiers)
+			//}
 		}()
 
 		select {
