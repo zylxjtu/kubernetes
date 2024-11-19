@@ -91,7 +91,7 @@ func RunKubelet(featureGates map[string]bool) {
 
 const (
 	// KubeletRootDirectory specifies the directory where the kubelet runtime information is stored.
-	KubeletRootDirectory = "c:\\var\\lib\\kubelet"
+	KubeletRootDirectory = "/var/lib/kubelet"
 )
 
 // Health check url of kubelet
@@ -219,8 +219,6 @@ func (e *E2EServices) startKubelet(featureGates map[string]bool) (*server, error
 
 	// Static Pods are in a per-test location, so we override them for tests.
 	kc.StaticPodPath = podPath
-
-	kc.PodLogsDir = "c:\\var\\log\\pods"
 
 	var killCommand, restartCommand *exec.Cmd
 	var isSystemd bool
