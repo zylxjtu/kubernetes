@@ -75,6 +75,7 @@ func updateImageAllowList(ctx context.Context) {
 	}
 	// Union NodePrePullImageList and PrePulledImages into the framework image pre-pull list.
 	e2epod.ImagePrePullList = NodePrePullImageList.Union(commontest.PrePulledImages)
+	e2epod.ImagePrePullList = NodePrePullImageList.Union(commontest.WindowsPrePulledImages)
 	// Images from extra envs
 	e2epod.ImagePrePullList.Insert(getNodeProblemDetectorImage())
 	if sriovDevicePluginImage, err := getSRIOVDevicePluginImage(); err != nil {

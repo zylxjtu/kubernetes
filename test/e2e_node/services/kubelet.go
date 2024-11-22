@@ -304,7 +304,11 @@ func (e *E2EServices) startKubelet(featureGates map[string]bool) (*server, error
 		cmdArgs = append(cmdArgs, "--image-service-endpoint", framework.TestContext.ImageServiceEndpoint)
 	}
 
-	if err := WriteKubeletConfigFile(kc, kubeletConfigPath); err != nil {
+	kc, err = adjustPlatformSpecificKubeletConfig(kc)
+	if err != nil {
+		return nil, err
+	}
+	if err = WriteKubeletConfigFile(kc, kubeletConfigPath); err != nil {
 		return nil, err
 	}
 	// add the flag to load config from a file
@@ -313,9 +317,9 @@ func (e *E2EServices) startKubelet(featureGates map[string]bool) (*server, error
 	// Override the default kubelet flags.
 	cmdArgs = append(cmdArgs, kubeletArgs...)
 
-	// Adjust the args if we are running kubelet with systemd.
-	if isSystemd {
-		adjustArgsForSystemd(cmdArgs)
+	cmdArgs, killCommand, restartCommand, err = adjustPlatformSpecificKubeletArgs(cmdArgs, isSystemd, killCommand, restartCommand)
+	if err != nil {
+		return nil, err
 	}
 
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
@@ -441,13 +445,4 @@ func createKubeconfigCWD() (string, error) {
 		return "", err
 	}
 	return kubeconfigPath, nil
-}
-
-// adjustArgsForSystemd escape special characters in kubelet arguments for systemd. Systemd
-// may try to do auto expansion without escaping.
-func adjustArgsForSystemd(args []string) {
-	for i := range args {
-		args[i] = strings.Replace(args[i], "%", "%%", -1)
-		args[i] = strings.Replace(args[i], "$", "$$", -1)
-	}
 }
