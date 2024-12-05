@@ -35,6 +35,7 @@ import (
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 )
 
@@ -76,7 +77,7 @@ var _ = SIGDescribe("ImageVolume", nodefeature.ImageVolume, func() {
 				Containers: []v1.Container{
 					{
 						Name:         containerName,
-						Image:        busyboxImage,
+						Image:        BusyboxImage,
 						Command:      ExecCommand(podName, execCommand{LoopForever: true}),
 						VolumeMounts: volumeMounts,
 					},

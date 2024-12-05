@@ -25,12 +25,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	kubeapi "k8s.io/kubernetes/pkg/apis/core"
-	"k8s.io/kubernetes/pkg/apis/scheduling"
-	kubelettypes "k8s.io/kubernetes/pkg/kubelet/types"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
-	imageutils "k8s.io/kubernetes/test/utils/image"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 
 	"github.com/onsi/ginkgo/v2"
@@ -50,9 +48,9 @@ var _ = SIGDescribe("CriticalPod", framework.WithSerial(), framework.WithDisrupt
 	ginkgo.Context("when we need to admit a critical pod", func() {
 		ginkgo.It("should be able to create and delete a critical pod", func(ctx context.Context) {
 			// because adminssion Priority enable, If the priority class is not found, the Pod is rejected.
-			node := getNodeName(ctx, f)
+			node := GetNodeName(ctx, f)
 			// Define test pods
-			nonCriticalGuaranteed := getTestPod(false, guaranteedPodName, v1.ResourceRequirements{
+			nonCriticalGuaranteed := GetTestPod(false, guaranteedPodName, v1.ResourceRequirements{
 				Requests: v1.ResourceList{
 					v1.ResourceCPU:    resource.MustParse("100m"),
 					v1.ResourceMemory: resource.MustParse("100Mi"),
@@ -62,17 +60,17 @@ var _ = SIGDescribe("CriticalPod", framework.WithSerial(), framework.WithDisrupt
 					v1.ResourceMemory: resource.MustParse("100Mi"),
 				},
 			}, node)
-			nonCriticalBurstable := getTestPod(false, burstablePodName, v1.ResourceRequirements{
+			nonCriticalBurstable := GetTestPod(false, burstablePodName, v1.ResourceRequirements{
 				Requests: v1.ResourceList{
 					v1.ResourceCPU:    resource.MustParse("100m"),
 					v1.ResourceMemory: resource.MustParse("100Mi"),
 				},
 			}, node)
-			nonCriticalBestEffort := getTestPod(false, bestEffortPodName, v1.ResourceRequirements{}, node)
-			criticalPod := getTestPod(true, criticalPodName, v1.ResourceRequirements{
+			nonCriticalBestEffort := GetTestPod(false, bestEffortPodName, v1.ResourceRequirements{}, node)
+			criticalPod := GetTestPod(true, criticalPodName, v1.ResourceRequirements{
 				// request the entire resource capacity of the node, so that
 				// admitting this pod requires the other pod to be preempted
-				Requests: getNodeCPUAndMemoryCapacity(ctx, f),
+				Requests: GetNodeCPUAndMemoryCapacity(ctx, f),
 			}, node)
 
 			// Create pods, starting with non-critical so that the critical preempts the other pods.
@@ -93,8 +91,8 @@ var _ = SIGDescribe("CriticalPod", framework.WithSerial(), framework.WithDisrupt
 
 		f.It("should add DisruptionTarget condition to the preempted pod", func(ctx context.Context) {
 			// because adminssion Priority enable, If the priority class is not found, the Pod is rejected.
-			node := getNodeName(ctx, f)
-			nonCriticalGuaranteed := getTestPod(false, guaranteedPodName, v1.ResourceRequirements{
+			node := GetNodeName(ctx, f)
+			nonCriticalGuaranteed := GetTestPod(false, guaranteedPodName, v1.ResourceRequirements{
 				Requests: v1.ResourceList{
 					v1.ResourceCPU:    resource.MustParse("100m"),
 					v1.ResourceMemory: resource.MustParse("100Mi"),
@@ -105,10 +103,10 @@ var _ = SIGDescribe("CriticalPod", framework.WithSerial(), framework.WithDisrupt
 				},
 			}, node)
 
-			criticalPod := getTestPod(true, criticalPodName, v1.ResourceRequirements{
+			criticalPod := GetTestPod(true, criticalPodName, v1.ResourceRequirements{
 				// request the entire resource capacity of the node, so that
 				// admitting this pod requires the other pod to be preempted
-				Requests: getNodeCPUAndMemoryCapacity(ctx, f),
+				Requests: GetNodeCPUAndMemoryCapacity(ctx, f),
 			}, node)
 			criticalPod.Namespace = kubeapi.NamespaceSystem
 
@@ -140,65 +138,9 @@ var _ = SIGDescribe("CriticalPod", framework.WithSerial(), framework.WithDisrupt
 			e2epod.NewPodClient(f).DeleteSync(ctx, bestEffortPodName, metav1.DeleteOptions{}, e2epod.DefaultPodDeletionTimeout)
 			e2epod.PodClientNS(f, kubeapi.NamespaceSystem).DeleteSync(ctx, criticalPodName, metav1.DeleteOptions{}, e2epod.DefaultPodDeletionTimeout)
 			// Log Events
-			logPodEvents(ctx, f)
-			logNodeEvents(ctx, f)
+			LogPodEvents(ctx, f)
+			LogNodeEvents(ctx, f)
 
 		})
 	})
 })
-
-func getNodeCPUAndMemoryCapacity(ctx context.Context, f *framework.Framework) v1.ResourceList {
-	nodeList, err := f.ClientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
-	framework.ExpectNoError(err)
-	// Assuming that there is only one node, because this is a node e2e test.
-	gomega.Expect(nodeList.Items).To(gomega.HaveLen(1))
-	capacity := nodeList.Items[0].Status.Allocatable
-	return v1.ResourceList{
-		v1.ResourceCPU:    capacity[v1.ResourceCPU],
-		v1.ResourceMemory: capacity[v1.ResourceMemory],
-	}
-}
-
-func getNodeName(ctx context.Context, f *framework.Framework) string {
-	nodeList, err := f.ClientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
-	framework.ExpectNoError(err)
-	// Assuming that there is only one node, because this is a node e2e test.
-	gomega.Expect(nodeList.Items).To(gomega.HaveLen(1))
-	return nodeList.Items[0].GetName()
-}
-
-func getTestPod(critical bool, name string, resources v1.ResourceRequirements, node string) *v1.Pod {
-	pod := &v1.Pod{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Pod",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
-				{
-					Name:      "container",
-					Image:     imageutils.GetPauseImageName(),
-					Resources: resources,
-				},
-			},
-			NodeName: node,
-		},
-	}
-	if critical {
-		pod.ObjectMeta.Namespace = kubeapi.NamespaceSystem
-		pod.ObjectMeta.Annotations = map[string]string{
-			kubelettypes.ConfigSourceAnnotationKey: kubelettypes.FileSource,
-		}
-		pod.Spec.PriorityClassName = scheduling.SystemNodeCritical
-
-		if !kubelettypes.IsCriticalPod(pod) {
-			framework.Failf("pod %q should be a critical pod", pod.Name)
-		}
-	} else {
-		if kubelettypes.IsCriticalPod(pod) {
-			framework.Failf("pod %q should not be a critical pod", pod.Name)
-		}
-	}
-	return pod
-}

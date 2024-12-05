@@ -28,6 +28,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2eruntimeclass "k8s.io/kubernetes/test/e2e/framework/node/runtimeclass"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 	admissionapi "k8s.io/pod-security-admission/api"
 
@@ -38,12 +39,12 @@ import (
 func makePodToVerifyCgroupSize(cgroupNames []string, expectedCPU string, expectedMemory string) *v1.Pod {
 	// convert the names to their literal cgroupfs forms...
 	cgroupFsNames := []string{}
-	rootCgroupName := cm.NewCgroupName(cm.RootCgroupName, defaultNodeAllocatableCgroup)
+	rootCgroupName := cm.NewCgroupName(cm.RootCgroupName, DefaultNodeAllocatableCgroup)
 	for _, baseName := range cgroupNames {
 		// Add top level cgroup used to enforce node allocatable.
 		cgroupComponents := strings.Split(baseName, "/")
 		cgroupName := cm.NewCgroupName(rootCgroupName, cgroupComponents...)
-		cgroupFsNames = append(cgroupFsNames, toCgroupFsName(cgroupName))
+		cgroupFsNames = append(cgroupFsNames, ToCgroupFsName(cgroupName))
 	}
 	framework.Logf("expecting %v cgroups to be found", cgroupFsNames)
 
@@ -66,7 +67,7 @@ func makePodToVerifyCgroupSize(cgroupNames []string, expectedCPU string, expecte
 			RestartPolicy: v1.RestartPolicyNever,
 			Containers: []v1.Container{
 				{
-					Image:   busyboxImage,
+					Image:   BusyboxImage,
 					Name:    "container",
 					Command: []string{"sh", "-c", command},
 					VolumeMounts: []v1.VolumeMount{
@@ -96,7 +97,7 @@ var _ = SIGDescribe("Kubelet PodOverhead handling [LinuxOnly]", func() {
 	ginkgo.Describe("PodOverhead cgroup accounting", func() {
 		ginkgo.Context("On running pod with PodOverhead defined", func() {
 			ginkgo.It("Pod cgroup should be sum of overhead and resource limits", func(ctx context.Context) {
-				if !kubeletCfg.CgroupsPerQOS {
+				if !KubeletCfg.CgroupsPerQOS {
 					return
 				}
 

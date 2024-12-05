@@ -1,5 +1,5 @@
-//go:build linux
-// +build linux
+//go:build !linux
+// +build !linux
 
 /*
 Copyright 2021 The Kubernetes Authors.
@@ -17,20 +17,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2enode
+package utils
 
-import (
-	"os/exec"
-	"strconv"
-	"strings"
-)
-
-// countSRIOVDevices provides a rough estimate of SRIOV Virtual Functions available on the system.
-// This is a rough check we use to rule out unsuitable systems, not to detect suitable systems.
-func countSRIOVDevices() (int, error) {
-	outData, err := exec.Command("/bin/sh", "-c", "ls /sys/bus/pci/devices/*/physfn | wc -w").Output()
-	if err != nil {
-		return -1, err
-	}
-	return strconv.Atoi(strings.TrimSpace(string(outData)))
+func CountSRIOVDevices() (int, error) {
+	return 0, nil
 }

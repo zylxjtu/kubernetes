@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2enode
+package utils
 
 import (
 	"context"
@@ -59,6 +59,9 @@ import (
 	kubeletmetrics "k8s.io/kubernetes/pkg/kubelet/metrics"
 	"k8s.io/kubernetes/pkg/kubelet/util"
 
+	kubeapi "k8s.io/kubernetes/pkg/apis/core"
+	"k8s.io/kubernetes/pkg/apis/scheduling"
+	kubelettypes "k8s.io/kubernetes/pkg/kubelet/types"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2emetrics "k8s.io/kubernetes/test/e2e/framework/metrics"
 	e2enode "k8s.io/kubernetes/test/e2e/framework/node"
@@ -69,32 +72,32 @@ import (
 	"github.com/onsi/gomega"
 )
 
-var startServices = flag.Bool("start-services", true, "If true, start local node services")
-var stopServices = flag.Bool("stop-services", true, "If true, stop local node services after running tests")
-var busyboxImage = imageutils.GetE2EImage(imageutils.BusyBox)
-var agnhostImage = imageutils.GetE2EImage(imageutils.Agnhost)
+var StartServices = flag.Bool("start-services", true, "If true, start local node services")
+var StopServices = flag.Bool("stop-services", true, "If true, stop local node services after running tests")
+var BusyboxImage = imageutils.GetE2EImage(imageutils.BusyBox)
+var AgnhostImage = imageutils.GetE2EImage(imageutils.Agnhost)
 
 const (
 	// Kubelet internal cgroup name for node allocatable cgroup.
-	defaultNodeAllocatableCgroup = "kubepods"
-	// defaultPodResourcesPath is the path to the local endpoint serving the podresources GRPC service.
-	defaultPodResourcesPath    = "/var/lib/kubelet/pod-resources"
-	defaultPodResourcesTimeout = 10 * time.Second
-	defaultPodResourcesMaxSize = 1024 * 1024 * 16 // 16 Mb
+	DefaultNodeAllocatableCgroup = "kubepods"
+	// DefaultPodResourcesPath is the path to the local endpoint serving the podresources GRPC service.
+	DefaultPodResourcesPath    = "/var/lib/kubelet/pod-resources"
+	DefaultPodResourcesTimeout = 10 * time.Second
+	DefaultPodResourcesMaxSize = 1024 * 1024 * 16 // 16 Mb
 	// state files
-	cpuManagerStateFile    = "/var/lib/kubelet/cpu_manager_state"
-	memoryManagerStateFile = "/var/lib/kubelet/memory_manager_state"
+	CpuManagerStateFile    = "/var/lib/kubelet/cpu_manager_state"
+	MemoryManagerStateFile = "/var/lib/kubelet/memory_manager_state"
 )
 
 var (
-	kubeletHealthCheckURL    = fmt.Sprintf("http://127.0.0.1:%d/healthz", ports.KubeletHealthzPort)
-	containerRuntimeUnitName = ""
+	KubeletHealthCheckURL    = fmt.Sprintf("http://127.0.0.1:%d/healthz", ports.KubeletHealthzPort)
+	ContainerRuntimeUnitName = ""
 	// KubeletConfig is the kubelet configuration the test is running against.
-	kubeletCfg *kubeletconfig.KubeletConfiguration
+	KubeletCfg *kubeletconfig.KubeletConfiguration
 )
 
-func getNodeSummary(ctx context.Context) (*stats.Summary, error) {
-	kubeletConfig, err := getCurrentKubeletConfig(ctx)
+func GetNodeSummary(ctx context.Context) (*stats.Summary, error) {
+	kubeletConfig, err := GetCurrentKubeletConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current kubelet config")
 	}
@@ -125,12 +128,12 @@ func getNodeSummary(ctx context.Context) (*stats.Summary, error) {
 	return &summary, nil
 }
 
-func getV1alpha1NodeDevices(ctx context.Context) (*kubeletpodresourcesv1alpha1.ListPodResourcesResponse, error) {
-	endpoint, err := util.LocalEndpoint(defaultPodResourcesPath, podresources.Socket)
+func GetV1alpha1NodeDevices(ctx context.Context) (*kubeletpodresourcesv1alpha1.ListPodResourcesResponse, error) {
+	endpoint, err := util.LocalEndpoint(DefaultPodResourcesPath, podresources.Socket)
 	if err != nil {
 		return nil, fmt.Errorf("Error getting local endpoint: %w", err)
 	}
-	client, conn, err := podresources.GetV1alpha1Client(endpoint, defaultPodResourcesTimeout, defaultPodResourcesMaxSize)
+	client, conn, err := podresources.GetV1alpha1Client(endpoint, DefaultPodResourcesTimeout, DefaultPodResourcesMaxSize)
 	if err != nil {
 		return nil, fmt.Errorf("Error getting grpc client: %w", err)
 	}
@@ -144,12 +147,12 @@ func getV1alpha1NodeDevices(ctx context.Context) (*kubeletpodresourcesv1alpha1.L
 	return resp, nil
 }
 
-func getV1NodeDevices(ctx context.Context) (*kubeletpodresourcesv1.ListPodResourcesResponse, error) {
-	endpoint, err := util.LocalEndpoint(defaultPodResourcesPath, podresources.Socket)
+func GetV1NodeDevices(ctx context.Context) (*kubeletpodresourcesv1.ListPodResourcesResponse, error) {
+	endpoint, err := util.LocalEndpoint(DefaultPodResourcesPath, podresources.Socket)
 	if err != nil {
 		return nil, fmt.Errorf("Error getting local endpoint: %w", err)
 	}
-	client, conn, err := podresources.GetV1Client(endpoint, defaultPodResourcesTimeout, defaultPodResourcesMaxSize)
+	client, conn, err := podresources.GetV1Client(endpoint, DefaultPodResourcesTimeout, DefaultPodResourcesMaxSize)
 	if err != nil {
 		return nil, fmt.Errorf("Error getting gRPC client: %w", err)
 	}
@@ -164,12 +167,12 @@ func getV1NodeDevices(ctx context.Context) (*kubeletpodresourcesv1.ListPodResour
 }
 
 // Returns the current KubeletConfiguration
-func getCurrentKubeletConfig(ctx context.Context) (*kubeletconfig.KubeletConfiguration, error) {
+func GetCurrentKubeletConfig(ctx context.Context) (*kubeletconfig.KubeletConfiguration, error) {
 	// namespace only relevant if useProxy==true, so we don't bother
 	return e2enodekubelet.GetCurrentKubeletConfig(ctx, framework.TestContext.NodeName, "", false, framework.TestContext.StandaloneMode)
 }
 
-func addAfterEachForCleaningUpPods(f *framework.Framework) {
+func AddAfterEachForCleaningUpPods(f *framework.Framework) {
 	ginkgo.AfterEach(func(ctx context.Context) {
 		ginkgo.By("Deleting any Pods created by the test in namespace: " + f.Namespace.Name)
 		l, err := e2epod.NewPodClient(f).List(ctx, metav1.ListOptions{})
@@ -186,12 +189,12 @@ func addAfterEachForCleaningUpPods(f *framework.Framework) {
 
 // Must be called within a Context. Allows the function to modify the KubeletConfiguration during the BeforeEach of the context.
 // The change is reverted in the AfterEach of the context.
-func tempSetCurrentKubeletConfig(f *framework.Framework, updateFunction func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration)) {
+func TempSetCurrentKubeletConfig(f *framework.Framework, updateFunction func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration)) {
 	var oldCfg *kubeletconfig.KubeletConfiguration
 
 	ginkgo.BeforeEach(func(ctx context.Context) {
 		var err error
-		oldCfg, err = getCurrentKubeletConfig(ctx)
+		oldCfg, err = GetCurrentKubeletConfig(ctx)
 		framework.ExpectNoError(err)
 
 		newCfg := oldCfg.DeepCopy()
@@ -200,26 +203,26 @@ func tempSetCurrentKubeletConfig(f *framework.Framework, updateFunction func(ctx
 			return
 		}
 
-		updateKubeletConfig(ctx, f, newCfg, true)
+		UpdateKubeletConfig(ctx, f, newCfg, true)
 	})
 
 	ginkgo.AfterEach(func(ctx context.Context) {
 		if oldCfg != nil {
 			// Update the Kubelet configuration.
-			updateKubeletConfig(ctx, f, oldCfg, true)
+			UpdateKubeletConfig(ctx, f, oldCfg, true)
 		}
 	})
 }
 
-func updateKubeletConfig(ctx context.Context, f *framework.Framework, kubeletConfig *kubeletconfig.KubeletConfiguration, deleteStateFiles bool) {
+func UpdateKubeletConfig(ctx context.Context, f *framework.Framework, kubeletConfig *kubeletconfig.KubeletConfiguration, deleteStateFiles bool) {
 	// Update the Kubelet configuration.
 	ginkgo.By("Stopping the kubelet")
-	restartKubelet := mustStopKubelet(ctx, f)
+	restartKubelet := MustStopKubelet(ctx, f)
 
 	// Delete CPU and memory manager state files to be sure it will not prevent the kubelet restart
 	if deleteStateFiles {
-		deleteStateFile(cpuManagerStateFile)
-		deleteStateFile(memoryManagerStateFile)
+		deleteStateFile(CpuManagerStateFile)
+		deleteStateFile(MemoryManagerStateFile)
 	}
 
 	framework.ExpectNoError(e2enodekubelet.WriteKubeletConfigFile(kubeletConfig))
@@ -228,10 +231,10 @@ func updateKubeletConfig(ctx context.Context, f *framework.Framework, kubeletCon
 	restartKubelet(ctx)
 }
 
-func waitForKubeletToStart(ctx context.Context, f *framework.Framework) {
+func WaitForKubeletToStart(ctx context.Context, f *framework.Framework) {
 	// wait until the kubelet health check will succeed
 	gomega.Eventually(ctx, func() bool {
-		return kubeletHealthCheck(kubeletHealthCheckURL)
+		return KubeletHealthCheck(KubeletHealthCheckURL)
 	}, 2*time.Minute, 5*time.Second).Should(gomega.BeTrueBecause("expected kubelet to be in healthy state"))
 
 	// Wait for the Kubelet to be ready.
@@ -259,30 +262,30 @@ func listNamespaceEvents(ctx context.Context, c clientset.Interface, ns string) 
 	return nil
 }
 
-func logPodEvents(ctx context.Context, f *framework.Framework) {
+func LogPodEvents(ctx context.Context, f *framework.Framework) {
 	framework.Logf("Summary of pod events during the test:")
 	err := listNamespaceEvents(ctx, f.ClientSet, f.Namespace.Name)
 	framework.ExpectNoError(err)
 }
 
-func logNodeEvents(ctx context.Context, f *framework.Framework) {
+func LogNodeEvents(ctx context.Context, f *framework.Framework) {
 	framework.Logf("Summary of node events during the test:")
 	err := listNamespaceEvents(ctx, f.ClientSet, "")
 	framework.ExpectNoError(err)
 }
 
-func getLocalNode(ctx context.Context, f *framework.Framework) *v1.Node {
+func GetLocalNode(ctx context.Context, f *framework.Framework) *v1.Node {
 	nodeList, err := e2enode.GetReadySchedulableNodes(ctx, f.ClientSet)
 	framework.ExpectNoError(err)
 	gomega.Expect(nodeList.Items).Should(gomega.HaveLen(1), "Unexpected number of node objects for node e2e. Expects only one node.")
 	return &nodeList.Items[0]
 }
 
-// getLocalTestNode fetches the node object describing the local worker node set up by the e2e_node infra, alongside with its ready state.
-// getLocalTestNode is a variant of `getLocalNode` which reports but does not set any requirement about the node readiness state, letting
+// GetLocalTestNode fetches the node object describing the local worker node set up by the e2e_node infra, alongside with its ready state.
+// GetLocalTestNode is a variant of `getLocalNode` which reports but does not set any requirement about the node readiness state, letting
 // the caller decide. The check is intentionally done like `getLocalNode` does.
 // Note `getLocalNode` aborts (as in ginkgo.Expect) the test implicitly if the worker node is not ready.
-func getLocalTestNode(ctx context.Context, f *framework.Framework) (*v1.Node, bool) {
+func GetLocalTestNode(ctx context.Context, f *framework.Framework) (*v1.Node, bool) {
 	node, err := f.ClientSet.CoreV1().Nodes().Get(ctx, framework.TestContext.NodeName, metav1.GetOptions{})
 	framework.ExpectNoError(err)
 	ready := e2enode.IsNodeReady(node)
@@ -291,15 +294,15 @@ func getLocalTestNode(ctx context.Context, f *framework.Framework) (*v1.Node, bo
 	return node, ready && schedulable
 }
 
-// logKubeletLatencyMetrics logs KubeletLatencyMetrics computed from the Prometheus
+// LogKubeletLatencyMetrics logs KubeletLatencyMetrics computed from the Prometheus
 // metrics exposed on the current node and identified by the metricNames.
 // The Kubelet subsystem prefix is automatically prepended to these metric names.
-func logKubeletLatencyMetrics(ctx context.Context, metricNames ...string) {
+func LogKubeletLatencyMetrics(ctx context.Context, metricNames ...string) {
 	metricSet := sets.NewString()
 	for _, key := range metricNames {
 		metricSet.Insert(kubeletmetrics.KubeletSubsystem + "_" + key)
 	}
-	metric, err := e2emetrics.GrabKubeletMetricsWithoutProxy(ctx, fmt.Sprintf("%s:%d", nodeNameOrIP(), ports.KubeletReadOnlyPort), "/metrics")
+	metric, err := e2emetrics.GrabKubeletMetricsWithoutProxy(ctx, fmt.Sprintf("%s:%d", NodeNameOrIP(), ports.KubeletReadOnlyPort), "/metrics")
 	if err != nil {
 		framework.Logf("Error getting kubelet metrics: %v", err)
 	} else {
@@ -307,8 +310,8 @@ func logKubeletLatencyMetrics(ctx context.Context, metricNames ...string) {
 	}
 }
 
-// getCRIClient connects CRI and returns CRI runtime service clients and image service client.
-func getCRIClient() (internalapi.RuntimeService, internalapi.ImageManagerService, error) {
+// GetCRIClient connects CRI and returns CRI runtime service clients and image service client.
+func GetCRIClient() (internalapi.RuntimeService, internalapi.ImageManagerService, error) {
 	// connection timeout for CRI service connection
 	logger := klog.Background()
 	const connectionTimeout = 2 * time.Minute
@@ -330,7 +333,7 @@ func getCRIClient() (internalapi.RuntimeService, internalapi.ImageManagerService
 	return r, i, nil
 }
 
-func kubeletHealthCheck(url string) bool {
+func KubeletHealthCheck(url string) bool {
 	insecureTransport := http.DefaultTransport.(*http.Transport).Clone()
 	insecureTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	insecureHTTPClient := &http.Client{
@@ -351,20 +354,20 @@ func kubeletHealthCheck(url string) bool {
 	return err == nil && resp.StatusCode == http.StatusOK
 }
 
-func toCgroupFsName(cgroupName cm.CgroupName) string {
-	if kubeletCfg.CgroupDriver == "systemd" {
+func ToCgroupFsName(cgroupName cm.CgroupName) string {
+	if KubeletCfg.CgroupDriver == "systemd" {
 		return cgroupName.ToSystemd()
 	}
 	return cgroupName.ToCgroupfs()
 }
 
-// reduceAllocatableMemoryUsageIfCgroupv1 uses memory.force_empty (https://lwn.net/Articles/432224/)
+// ReduceAllocatableMemoryUsageIfCgroupv1 uses memory.force_empty (https://lwn.net/Articles/432224/)
 // to make the kernel reclaim memory in the allocatable cgroup
 // the time to reduce pressure may be unbounded, but usually finishes within a second.
 // memory.force_empty is no supported in cgroupv2.
-func reduceAllocatableMemoryUsageIfCgroupv1() {
+func ReduceAllocatableMemoryUsageIfCgroupv1() {
 	if !IsCgroup2UnifiedMode() {
-		cmd := fmt.Sprintf("echo 0 > /sys/fs/cgroup/memory/%s/memory.force_empty", toCgroupFsName(cm.NewCgroupName(cm.RootCgroupName, defaultNodeAllocatableCgroup)))
+		cmd := fmt.Sprintf("echo 0 > /sys/fs/cgroup/memory/%s/memory.force_empty", ToCgroupFsName(cm.NewCgroupName(cm.RootCgroupName, DefaultNodeAllocatableCgroup)))
 		_, err := exec.Command("sudo", "sh", "-c", cmd).CombinedOutput()
 		framework.ExpectNoError(err)
 	}
@@ -374,7 +377,7 @@ func reduceAllocatableMemoryUsageIfCgroupv1() {
 // which can't be used here because we're not in a Testing context.
 // This must be in a non-"_test" file to pass
 // make verify WHAT=test-featuregates
-func withFeatureGate(feature featuregate.Feature, desired bool) func() {
+func WithFeatureGate(feature featuregate.Feature, desired bool) func() {
 	current := utilfeature.DefaultFeatureGate.Enabled(feature)
 	utilfeature.DefaultMutableFeatureGate.Set(fmt.Sprintf("%s=%v", string(feature), desired))
 	return func() {
@@ -382,13 +385,13 @@ func withFeatureGate(feature featuregate.Feature, desired bool) func() {
 	}
 }
 
-// waitForAllContainerRemoval waits until all the containers on a given pod are really gone.
+// WaitForAllContainerRemoval waits until all the containers on a given pod are really gone.
 // This is needed by the e2e tests which involve exclusive resource allocation (cpu, topology manager; podresources; etc.)
 // In these cases, we need to make sure the tests clean up after themselves to make sure each test runs in
 // a pristine environment. The only way known so far to do that is to introduce this wait.
 // Worth noting, however, that this makes the test runtime much bigger.
-func waitForAllContainerRemoval(ctx context.Context, podName, podNS string) {
-	rs, _, err := getCRIClient()
+func WaitForAllContainerRemoval(ctx context.Context, podName, podNS string) {
+	rs, _, err := GetCRIClient()
 	framework.ExpectNoError(err)
 	gomega.Eventually(ctx, func(ctx context.Context) error {
 		containers, err := rs.ListContainers(ctx, &runtimeapi.ContainerFilter{
@@ -408,7 +411,7 @@ func waitForAllContainerRemoval(ctx context.Context, podName, podNS string) {
 	}, 2*time.Minute, 1*time.Second).Should(gomega.Succeed())
 }
 
-func getPidsForProcess(name, pidFile string) ([]int, error) {
+func GetPidsForProcess(name, pidFile string) ([]int, error) {
 	if len(pidFile) > 0 {
 		pid, err := getPidFromPidFile(pidFile)
 		if err == nil {
@@ -491,6 +494,150 @@ func WaitForPodInitContainerToFail(ctx context.Context, c clientset.Interface, n
 	})
 }
 
-func nodeNameOrIP() string {
+func NodeNameOrIP() string {
 	return "localhost"
+}
+
+func WaitForNodeReady(ctx context.Context) {
+	const (
+		// nodeReadyTimeout is the time to wait for node to become ready.
+		nodeReadyTimeout = 2 * time.Minute
+		// nodeReadyPollInterval is the interval to check node ready.
+		nodeReadyPollInterval = 1 * time.Second
+	)
+	client, err := GetAPIServerClient()
+	framework.ExpectNoError(err, "should be able to get apiserver client.")
+	gomega.Eventually(ctx, func() error {
+		node, err := GetNode(client)
+		if err != nil {
+			return fmt.Errorf("failed to get node: %w", err)
+		}
+		if !IsNodeReady(node) {
+			return fmt.Errorf("node is not ready: %+v", node)
+		}
+		return nil
+	}, nodeReadyTimeout, nodeReadyPollInterval).Should(gomega.Succeed())
+}
+
+// UpdateTestContext updates the test context with the node name.
+func UpdateTestContext(ctx context.Context) error {
+	SetExtraEnvs()
+	UpdateImageAllowList(ctx)
+
+	client, err := GetAPIServerClient()
+	if err != nil {
+		return fmt.Errorf("failed to get apiserver client: %w", err)
+	}
+
+	if !framework.TestContext.StandaloneMode {
+		// Update test context with current node object.
+		node, err := GetNode(client)
+		if err != nil {
+			return fmt.Errorf("failed to get node: %w", err)
+		}
+		framework.TestContext.NodeName = node.Name // Set node name from API server, it is already set to the computer name by default.
+	}
+
+	framework.Logf("Node name: %s", framework.TestContext.NodeName)
+
+	return nil
+}
+
+// GetNode gets node object from the apiserver.
+func GetNode(c *clientset.Clientset) (*v1.Node, error) {
+	nodes, err := c.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	framework.ExpectNoError(err, "should be able to list nodes.")
+	if nodes == nil {
+		return nil, fmt.Errorf("the node list is nil")
+	}
+	gomega.Expect(len(nodes.Items)).To(gomega.BeNumerically("<=", 1), "the number of nodes is more than 1.")
+	if len(nodes.Items) == 0 {
+		return nil, fmt.Errorf("empty node list: %+v", nodes)
+	}
+	return &nodes.Items[0], nil
+}
+
+// GetAPIServerClient gets a apiserver client.
+func GetAPIServerClient() (*clientset.Clientset, error) {
+	config, err := framework.LoadConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
+	client, err := clientset.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client: %w", err)
+	}
+	return client, nil
+}
+
+// IsNodeReady returns true if a node is ready; false otherwise.
+func IsNodeReady(node *v1.Node) bool {
+	for _, c := range node.Status.Conditions {
+		if c.Type == v1.NodeReady {
+			return c.Status == v1.ConditionTrue
+		}
+	}
+	return false
+}
+
+func SetExtraEnvs() {
+	for name, value := range framework.TestContext.ExtraEnvs {
+		os.Setenv(name, value)
+	}
+}
+
+func GetNodeCPUAndMemoryCapacity(ctx context.Context, f *framework.Framework) v1.ResourceList {
+	nodeList, err := f.ClientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	framework.ExpectNoError(err)
+	// Assuming that there is only one node, because this is a node e2e test.
+	gomega.Expect(nodeList.Items).To(gomega.HaveLen(1))
+	capacity := nodeList.Items[0].Status.Allocatable
+	return v1.ResourceList{
+		v1.ResourceCPU:    capacity[v1.ResourceCPU],
+		v1.ResourceMemory: capacity[v1.ResourceMemory],
+	}
+}
+
+func GetNodeName(ctx context.Context, f *framework.Framework) string {
+	nodeList, err := f.ClientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	framework.ExpectNoError(err)
+	// Assuming that there is only one node, because this is a node e2e test.
+	gomega.Expect(nodeList.Items).To(gomega.HaveLen(1))
+	return nodeList.Items[0].GetName()
+}
+
+func GetTestPod(critical bool, name string, resources v1.ResourceRequirements, node string) *v1.Pod {
+	pod := &v1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Pod",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
+				{
+					Name:      "container",
+					Image:     imageutils.GetPauseImageName(),
+					Resources: resources,
+				},
+			},
+			NodeName: node,
+		},
+	}
+	if critical {
+		pod.ObjectMeta.Namespace = kubeapi.NamespaceSystem
+		pod.ObjectMeta.Annotations = map[string]string{
+			kubelettypes.ConfigSourceAnnotationKey: kubelettypes.FileSource,
+		}
+		pod.Spec.PriorityClassName = scheduling.SystemNodeCritical
+
+		if !kubelettypes.IsCriticalPod(pod) {
+			framework.Failf("pod %q should be a critical pod", pod.Name)
+		}
+	} else {
+		if kubelettypes.IsCriticalPod(pod) {
+			framework.Failf("pod %q should not be a critical pod", pod.Name)
+		}
+	}
+	return pod
 }

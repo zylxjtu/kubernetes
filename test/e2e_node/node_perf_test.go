@@ -33,6 +33,7 @@ import (
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 	e2enodekubelet "k8s.io/kubernetes/test/e2e_node/kubeletconfig"
 	"k8s.io/kubernetes/test/e2e_node/perf/workloads"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -52,7 +53,7 @@ func setKubeletConfig(ctx context.Context, f *framework.Framework, cfg *kubeletc
 	if cfg != nil {
 		// Update the Kubelet configuration.
 		ginkgo.By("Stopping the kubelet")
-		restartKubelet := mustStopKubelet(ctx, f)
+		restartKubelet := MustStopKubelet(ctx, f)
 
 		framework.ExpectNoError(e2enodekubelet.WriteKubeletConfigFile(cfg))
 
@@ -82,7 +83,7 @@ var _ = SIGDescribe("Node Performance Testing", framework.WithSerial(), framewor
 	ginkgo.JustBeforeEach(func(ctx context.Context) {
 		err := wl.PreTestExec()
 		framework.ExpectNoError(err)
-		oldCfg, err = getCurrentKubeletConfig(ctx)
+		oldCfg, err = GetCurrentKubeletConfig(ctx)
 		framework.ExpectNoError(err)
 		newCfg, err = wl.KubeletConfig(oldCfg)
 		framework.ExpectNoError(err)
@@ -147,7 +148,7 @@ var _ = SIGDescribe("Node Performance Testing", framework.WithSerial(), framewor
 		ginkgo.By("ensure environment has enough CPU + Memory to run")
 		minimumRequiredCPU := resource.MustParse("15")
 		minimumRequiredMemory := resource.MustParse("48Gi")
-		localNodeCap := getLocalNode(ctx, f).Status.Allocatable
+		localNodeCap := GetLocalNode(ctx, f).Status.Allocatable
 		cpuCap := localNodeCap[v1.ResourceCPU]
 		memCap := localNodeCap[v1.ResourceMemory]
 		if cpuCap.Cmp(minimumRequiredCPU) == -1 {

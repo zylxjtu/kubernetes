@@ -36,6 +36,7 @@ import (
 	"k8s.io/kubernetes/pkg/cluster/ports"
 	"k8s.io/kubernetes/test/e2e/feature"
 	"k8s.io/kubernetes/test/e2e/framework"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 	admissionapi "k8s.io/pod-security-admission/api"
 
@@ -54,7 +55,7 @@ var _ = SIGDescribe(feature.StandaloneMode, func() {
 		ginkgo.It("the pod should be running", func(ctx context.Context) {
 			ns = f.Namespace.Name
 			staticPodName = "static-pod-" + string(uuid.NewUUID())
-			podPath = kubeletCfg.StaticPodPath
+			podPath = KubeletCfg.StaticPodPath
 
 			err := createBasicStaticPod(podPath, staticPodName, ns)
 			framework.ExpectNoError(err)

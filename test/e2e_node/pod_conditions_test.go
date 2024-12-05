@@ -34,6 +34,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2eevents "k8s.io/kubernetes/test/e2e/framework/events"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	testutils "k8s.io/kubernetes/test/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 
@@ -49,7 +50,7 @@ var _ = SIGDescribe("Pod conditions managed by Kubelet", func() {
 	f.NamespacePodSecurityLevel = admissionapi.LevelBaseline
 
 	f.Context("including PodReadyToStartContainers condition", f.WithSerial(), feature.PodReadyToStartContainersCondition, func() {
-		tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+		TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
 			initialConfig.FeatureGates = map[string]bool{
 				string(features.PodReadyToStartContainersCondition): true,
 			}
@@ -58,7 +59,7 @@ var _ = SIGDescribe("Pod conditions managed by Kubelet", func() {
 		ginkgo.It("a pod with init containers should report all conditions set in expected order after the pod is up", runPodReadyConditionsTest(f, true, true))
 		ginkgo.It("a pod failing to mount volumes and without init containers should report scheduled and initialized conditions set", runPodFailingConditionsTest(f, false, true))
 		ginkgo.It("a pod failing to mount volumes and with init containers should report just the scheduled condition set", runPodFailingConditionsTest(f, true, true))
-		addAfterEachForCleaningUpPods(f)
+		AddAfterEachForCleaningUpPods(f)
 	})
 
 	ginkgo.Context("without PodReadyToStartContainersCondition condition", func() {
@@ -66,7 +67,7 @@ var _ = SIGDescribe("Pod conditions managed by Kubelet", func() {
 		ginkgo.It("a pod with init containers should report all conditions set in expected order after the pod is up", runPodReadyConditionsTest(f, true, false))
 		ginkgo.It("a pod failing to mount volumes and without init containers should report scheduled and initialized conditions set", runPodFailingConditionsTest(f, false, false))
 		ginkgo.It("a pod failing to mount volumes and with init containers should report just the scheduled condition set", runPodFailingConditionsTest(f, true, false))
-		addAfterEachForCleaningUpPods(f)
+		AddAfterEachForCleaningUpPods(f)
 	})
 })
 

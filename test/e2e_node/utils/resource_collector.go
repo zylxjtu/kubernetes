@@ -17,7 +17,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2enode
+package utils
 
 import (
 	"bytes"
@@ -87,7 +87,7 @@ func NewResourceCollector(interval time.Duration) *ResourceCollector {
 // then repeatedly runs collectStats.
 func (r *ResourceCollector) Start() {
 	// Get the cgroup container names for kubelet and runtime
-	kubeletContainer, err1 := getContainerNameForProcess(kubeletProcessName, "")
+	kubeletContainer, err1 := getContainerNameForProcess(KubeletProcessName, "")
 	runtimeContainer, err2 := getContainerNameForProcess(framework.TestContext.ContainerRuntimeProcessName, framework.TestContext.ContainerRuntimePidFile)
 	if err1 == nil && err2 == nil && kubeletContainer != "" && runtimeContainer != "" {
 		systemContainers = map[string]string{
@@ -146,7 +146,7 @@ func (r *ResourceCollector) LogLatest() {
 	if err != nil {
 		framework.Logf("%v", err)
 	}
-	framework.Logf("%s", formatResourceUsageStats(summary))
+	framework.Logf("%s", FormatResourceUsageStats(summary))
 }
 
 // collectStats collects resource usage from Cadvisor.
@@ -233,7 +233,7 @@ func (r *ResourceCollector) GetBasicCPUStats(containerName string) map[float64]f
 	return result
 }
 
-func formatResourceUsageStats(containerStats e2ekubelet.ResourceUsagePerContainer) string {
+func FormatResourceUsageStats(containerStats e2ekubelet.ResourceUsagePerContainer) string {
 	// Example output:
 	//
 	// Resource usage:
@@ -251,7 +251,7 @@ func formatResourceUsageStats(containerStats e2ekubelet.ResourceUsagePerContaine
 	return fmt.Sprintf("Resource usage:\n%s", buf.String())
 }
 
-func formatCPUSummary(summary e2ekubelet.ContainersCPUSummary) string {
+func FormatCPUSummary(summary e2ekubelet.ContainersCPUSummary) string {
 	// Example output for a node (the percentiles may differ):
 	// CPU usage of containers:
 	// container        5th%  50th% 90th% 95th%
@@ -290,7 +290,7 @@ func formatCPUSummary(summary e2ekubelet.ContainersCPUSummary) string {
 }
 
 // createCadvisorPod creates a standalone cadvisor pod for fine-grain resource monitoring.
-func getCadvisorPod() *v1.Pod {
+func GetCadvisorPod() *v1.Pod {
 	return &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: cadvisorPodName,
@@ -363,8 +363,8 @@ func getCadvisorPod() *v1.Pod {
 	}
 }
 
-// deletePodsSync deletes a list of pods and block until pods disappear.
-func deletePodsSync(ctx context.Context, f *framework.Framework, pods []*v1.Pod) {
+// DeletePodsSync deletes a list of pods and block until pods disappear.
+func DeletePodsSync(ctx context.Context, f *framework.Framework, pods []*v1.Pod) {
 	var wg sync.WaitGroup
 	for i := range pods {
 		pod := pods[i]
@@ -385,8 +385,8 @@ func deletePodsSync(ctx context.Context, f *framework.Framework, pods []*v1.Pod)
 	return
 }
 
-// newTestPods creates a list of pods (specification) for test.
-func newTestPods(numPods int, volume bool, imageName, podType string) []*v1.Pod {
+// NewTestPods creates a list of pods (specification) for test.
+func NewTestPods(numPods int, volume bool, imageName, podType string) []*v1.Pod {
 	var pods []*v1.Pod
 	for i := 0; i < numPods; i++ {
 		podName := "test-" + string(uuid.NewUUID())
@@ -458,10 +458,10 @@ func (r *ResourceCollector) GetResourceTimeSeries() map[string]*perftype.Resourc
 	return resourceSeries
 }
 
-const kubeletProcessName = "kubelet"
+const KubeletProcessName = "kubelet"
 
 func getContainerNameForProcess(name, pidFile string) (string, error) {
-	pids, err := getPidsForProcess(name, pidFile)
+	pids, err := GetPidsForProcess(name, pidFile)
 	if err != nil {
 		return "", fmt.Errorf("failed to detect process id for %q - %v", name, err)
 	}

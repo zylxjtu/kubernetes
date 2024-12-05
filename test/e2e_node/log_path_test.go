@@ -26,6 +26,7 @@ import (
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 
 	"github.com/onsi/ginkgo/v2"
@@ -53,7 +54,7 @@ var _ = SIGDescribe("ContainerLogPath", framework.WithNodeConformance(), func() 
 						RestartPolicy: v1.RestartPolicyNever,
 						Containers: []v1.Container{
 							{
-								Image:   busyboxImage,
+								Image:   BusyboxImage,
 								Name:    logContainerName,
 								Command: []string{"sh", "-c", "echo " + log},
 							},
@@ -75,7 +76,7 @@ var _ = SIGDescribe("ContainerLogPath", framework.WithNodeConformance(), func() 
 						RestartPolicy: v1.RestartPolicyNever,
 						Containers: []v1.Container{
 							{
-								Image: busyboxImage,
+								Image: BusyboxImage,
 								SecurityContext: &v1.SecurityContext{
 									SELinuxOptions: &v1.SELinuxOptions{
 										Type: "container_logreader_t",

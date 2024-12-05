@@ -1,5 +1,5 @@
-//go:build windows
-// +build windows
+//go:build !linux
+// +build !linux
 
 /*
 Copyright 2024 The Kubernetes Authors.
@@ -17,14 +17,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2enode
+package utils
 
 import (
 	klog "k8s.io/klog/v2"
 )
 
-func systemValidation(systemSpecFile *string) {
-	klog.Warningf("system spec validation is not supported on Windows yet")
+func SystemValidation(systemSpecFile *string) {
+	klog.Warningf("system spec validation is not supported on platform other than linux yet")
 
 	return
 }

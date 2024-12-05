@@ -30,6 +30,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 
 	"github.com/onsi/ginkgo/v2"
@@ -149,7 +150,7 @@ func containerGCTest(f *framework.Framework, test testRun) {
 	var runtime internalapi.RuntimeService
 	ginkgo.BeforeEach(func() {
 		var err error
-		runtime, _, err = getCRIClient()
+		runtime, _, err = GetCRIClient()
 		framework.ExpectNoError(err)
 	})
 	for _, pod := range test.testPods {
@@ -268,8 +269,8 @@ func containerGCTest(f *framework.Framework, test testRun) {
 			}, garbageCollectDuration, runtimePollInterval).Should(gomega.BeNil())
 
 			if ginkgo.CurrentSpecReport().Failed() && framework.TestContext.DumpLogsOnFailure {
-				logNodeEvents(ctx, f)
-				logPodEvents(ctx, f)
+				LogNodeEvents(ctx, f)
+				LogPodEvents(ctx, f)
 			}
 		})
 	})
@@ -281,7 +282,7 @@ func getPods(specs []*testPodSpec) (pods []*v1.Pod) {
 		containers := []v1.Container{}
 		for i := 0; i < spec.numContainers; i++ {
 			containers = append(containers, v1.Container{
-				Image:   busyboxImage,
+				Image:   BusyboxImage,
 				Name:    spec.getContainerName(i),
 				Command: getRestartingContainerCommand("/test-empty-dir-mnt", i, spec.restartCount, ""),
 				VolumeMounts: []v1.VolumeMount{

@@ -43,6 +43,7 @@ import (
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 	e2etestfiles "k8s.io/kubernetes/test/e2e/framework/testfiles"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	testutils "k8s.io/kubernetes/test/utils"
 
 	"github.com/onsi/ginkgo/v2"
@@ -147,7 +148,7 @@ func makeContainers(ctnCmd string, ctnAttributes []tmCtnAttribute) (ctns []v1.Co
 	for _, ctnAttr := range ctnAttributes {
 		ctn := v1.Container{
 			Name:  ctnAttr.ctnName,
-			Image: busyboxImage,
+			Image: BusyboxImage,
 			Resources: v1.ResourceRequirements{
 				Requests: v1.ResourceList{
 					v1.ResourceName(v1.ResourceCPU):    resource.MustParse(ctnAttr.cpuRequest),
@@ -465,7 +466,7 @@ func deletePodsAsync(ctx context.Context, f *framework.Framework, podMap map[str
 			defer wg.Done()
 
 			deletePodSyncByName(ctx, f, podName)
-			waitForAllContainerRemoval(ctx, podName, podNS)
+			WaitForAllContainerRemoval(ctx, podName, podNS)
 		}(pod.Namespace, pod.Name)
 	}
 	wg.Wait()
@@ -587,7 +588,7 @@ func waitForSRIOVResources(ctx context.Context, f *framework.Framework, sd *srio
 	var sriovResourceAmount int64
 	ginkgo.By("Waiting for devices to become available on the local node")
 	gomega.Eventually(ctx, func(ctx context.Context) bool {
-		node := getLocalNode(ctx, f)
+		node := GetLocalNode(ctx, f)
 		sriovResourceName, sriovResourceAmount = findSRIOVResource(node)
 		return sriovResourceAmount > minSriovResource
 	}, 2*time.Minute, framework.Poll).Should(gomega.BeTrueBecause("expected SRIOV resources to be available within the timout"))
@@ -607,7 +608,7 @@ func deleteSRIOVPodOrFail(ctx context.Context, f *framework.Framework, sd *sriov
 	ginkgo.By(fmt.Sprintf("Delete SRIOV device plugin pod %s/%s", sd.pod.Namespace, sd.pod.Name))
 	err = f.ClientSet.CoreV1().Pods(sd.pod.Namespace).Delete(ctx, sd.pod.Name, deleteOptions)
 	framework.ExpectNoError(err)
-	waitForAllContainerRemoval(ctx, sd.pod.Name, sd.pod.Namespace)
+	WaitForAllContainerRemoval(ctx, sd.pod.Name, sd.pod.Namespace)
 }
 
 func removeSRIOVConfigOrFail(ctx context.Context, f *framework.Framework, sd *sriovData) {
@@ -1065,7 +1066,7 @@ func runTopologyManagerTests(f *framework.Framework, topologyOptions map[string]
 	}
 
 	ginkgo.It("run Topology Manager policy test suite", func(ctx context.Context) {
-		oldCfg, err = getCurrentKubeletConfig(ctx)
+		oldCfg, err = GetCurrentKubeletConfig(ctx)
 		framework.ExpectNoError(err)
 
 		scope := containerScopeTopology
@@ -1075,7 +1076,7 @@ func runTopologyManagerTests(f *framework.Framework, topologyOptions map[string]
 			framework.Logf("Configuring topology Manager policy to %s", policy)
 
 			newCfg, _ := configureTopologyManagerInKubelet(oldCfg, policy, scope, topologyOptions, nil, 0)
-			updateKubeletConfig(ctx, f, newCfg, true)
+			UpdateKubeletConfig(ctx, f, newCfg, true)
 			// Run the tests
 			runTopologyManagerPolicySuiteTests(ctx, f)
 		}
@@ -1086,7 +1087,7 @@ func runTopologyManagerTests(f *framework.Framework, topologyOptions map[string]
 
 		configMap := getSRIOVDevicePluginConfigMap(framework.TestContext.SriovdpConfigMapFile)
 
-		oldCfg, err = getCurrentKubeletConfig(ctx)
+		oldCfg, err = GetCurrentKubeletConfig(ctx)
 		framework.ExpectNoError(err)
 
 		sd := setupSRIOVConfigOrFail(ctx, f, configMap)
@@ -1099,7 +1100,7 @@ func runTopologyManagerTests(f *framework.Framework, topologyOptions map[string]
 			framework.Logf("Configuring topology Manager policy to %s", policy)
 
 			newCfg, reservedSystemCPUs := configureTopologyManagerInKubelet(oldCfg, policy, scope, topologyOptions, configMap, numaNodes)
-			updateKubeletConfig(ctx, f, newCfg, true)
+			UpdateKubeletConfig(ctx, f, newCfg, true)
 
 			runTopologyManagerNodeAlignmentSuiteTests(ctx, f, sd, reservedSystemCPUs, policy, numaNodes, coreCount)
 		}
@@ -1110,14 +1111,14 @@ func runTopologyManagerTests(f *framework.Framework, topologyOptions map[string]
 
 		configMap := getSRIOVDevicePluginConfigMap(framework.TestContext.SriovdpConfigMapFile)
 
-		oldCfg, err = getCurrentKubeletConfig(ctx)
+		oldCfg, err = GetCurrentKubeletConfig(ctx)
 		framework.ExpectNoError(err)
 
 		policy := topologymanager.PolicySingleNumaNode
 		scope := podScopeTopology
 
 		newCfg, reservedSystemCPUs := configureTopologyManagerInKubelet(oldCfg, policy, scope, topologyOptions, configMap, numaNodes)
-		updateKubeletConfig(ctx, f, newCfg, true)
+		UpdateKubeletConfig(ctx, f, newCfg, true)
 
 		runTMScopeResourceAlignmentTestSuite(ctx, f, configMap, reservedSystemCPUs, policy, numaNodes, coreCount)
 	})
@@ -1125,7 +1126,7 @@ func runTopologyManagerTests(f *framework.Framework, topologyOptions map[string]
 	ginkgo.AfterEach(func(ctx context.Context) {
 		if oldCfg != nil {
 			// restore kubelet config
-			updateKubeletConfig(ctx, f, oldCfg, true)
+			UpdateKubeletConfig(ctx, f, oldCfg, true)
 		}
 	})
 }
@@ -1142,7 +1143,7 @@ func runPreferClosestNUMATests(f *framework.Framework) {
 
 		numaDistances := detectNUMADistances(numaNodes)
 
-		oldCfg, err = getCurrentKubeletConfig(ctx)
+		oldCfg, err = GetCurrentKubeletConfig(ctx)
 		framework.ExpectNoError(err)
 
 		policy := topologymanager.PolicyBestEffort
@@ -1150,7 +1151,7 @@ func runPreferClosestNUMATests(f *framework.Framework) {
 		options := map[string]string{topologymanager.PreferClosestNUMANodes: "true"}
 
 		newCfg, _ := configureTopologyManagerInKubelet(oldCfg, policy, scope, options, &v1.ConfigMap{}, numaNodes)
-		updateKubeletConfig(ctx, f, newCfg, true)
+		UpdateKubeletConfig(ctx, f, newCfg, true)
 
 		runPreferClosestNUMATestSuite(ctx, f, numaNodes, numaDistances)
 	})
@@ -1158,7 +1159,7 @@ func runPreferClosestNUMATests(f *framework.Framework) {
 	ginkgo.AfterEach(func(ctx context.Context) {
 		if oldCfg != nil {
 			// restore kubelet config
-			updateKubeletConfig(ctx, f, oldCfg, true)
+			UpdateKubeletConfig(ctx, f, oldCfg, true)
 		}
 	})
 }
@@ -1177,7 +1178,7 @@ func hostPrecheck() (int, int) {
 		e2eskipper.Skipf("this test is intended to be run on a system with at least %d cores per socket", minCoreCount)
 	}
 
-	requireSRIOVDevices()
+	RequireSRIOVDevices()
 
 	return numaNodes, coreCount
 }

@@ -30,6 +30,7 @@ import (
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 	"k8s.io/utils/ptr"
 )
@@ -43,7 +44,7 @@ var _ = SIGDescribe("Mount recursive read-only [LinuxOnly]", nodefeature.Recursi
 		ginkgo.Context("when the runtime supports recursive read-only mounts", func() {
 			f.It("should accept recursive read-only mounts", func(ctx context.Context) {
 				ginkgo.By("waiting for the node to be ready", func() {
-					waitForNodeReady(ctx)
+					WaitForNodeReady(ctx)
 					if !supportsRRO(ctx, f) {
 						e2eskipper.Skipf("runtime does not support recursive read-only mounts")
 					}
@@ -86,7 +87,7 @@ var _ = SIGDescribe("Mount recursive read-only [LinuxOnly]", nodefeature.Recursi
 			}) // It
 			f.It("should reject invalid recursive read-only mounts", func(ctx context.Context) {
 				ginkgo.By("waiting for the node to be ready", func() {
-					waitForNodeReady(ctx)
+					WaitForNodeReady(ctx)
 					if !supportsRRO(ctx, f) {
 						e2eskipper.Skipf("runtime does not support recursive read-only mounts")
 					}
@@ -101,7 +102,7 @@ var _ = SIGDescribe("Mount recursive read-only [LinuxOnly]", nodefeature.Recursi
 							RestartPolicy: v1.RestartPolicyNever,
 							Containers: []v1.Container{
 								{
-									Image:   busyboxImage,
+									Image:   BusyboxImage,
 									Name:    "busybox",
 									Command: []string{"echo", "this container should fail"},
 									VolumeMounts: []v1.VolumeMount{
@@ -133,7 +134,7 @@ var _ = SIGDescribe("Mount recursive read-only [LinuxOnly]", nodefeature.Recursi
 			f.It("should accept non-recursive read-only mounts", func(ctx context.Context) {
 				e2eskipper.SkipUnlessFeatureGateEnabled(features.RecursiveReadOnlyMounts)
 				ginkgo.By("waiting for the node to be ready", func() {
-					waitForNodeReady(ctx)
+					WaitForNodeReady(ctx)
 					if supportsRRO(ctx, f) {
 						e2eskipper.Skipf("runtime supports recursive read-only mounts")
 					}
@@ -174,7 +175,7 @@ var _ = SIGDescribe("Mount recursive read-only [LinuxOnly]", nodefeature.Recursi
 			f.It("should reject recursive read-only mounts", func(ctx context.Context) {
 				e2eskipper.SkipUnlessFeatureGateEnabled(features.RecursiveReadOnlyMounts)
 				ginkgo.By("waiting for the node to be ready", func() {
-					waitForNodeReady(ctx)
+					WaitForNodeReady(ctx)
 					if supportsRRO(ctx, f) {
 						e2eskipper.Skipf("runtime supports recursive read-only mounts")
 					}
@@ -189,7 +190,7 @@ var _ = SIGDescribe("Mount recursive read-only [LinuxOnly]", nodefeature.Recursi
 							RestartPolicy: v1.RestartPolicyNever,
 							Containers: []v1.Container{
 								{
-									Image:   busyboxImage,
+									Image:   BusyboxImage,
 									Name:    "busybox",
 									Command: []string{"echo", "this container should fail"},
 									VolumeMounts: []v1.VolumeMount{
@@ -249,7 +250,7 @@ func podForRROSupported(name, ns string) *v1.Pod {
 			RestartPolicy: v1.RestartPolicyNever,
 			InitContainers: []v1.Container{
 				{
-					Image:   busyboxImage,
+					Image:   BusyboxImage,
 					Name:    "mount",
 					Command: []string{"sh", "-euxc", "mkdir -p /mnt/tmpfs && mount -t tmpfs none /mnt/tmpfs"},
 					SecurityContext: &v1.SecurityContext{
@@ -264,7 +265,7 @@ func podForRROSupported(name, ns string) *v1.Pod {
 					},
 				},
 				{
-					Image: busyboxImage,
+					Image: BusyboxImage,
 					Name:  "test",
 					Command: []string{"sh", "-euxc", `
 for f in rro rro-if-possible; do touch /mnt-$f/tmpfs/foo 2>&1 | grep "Read-only"; done
@@ -302,7 +303,7 @@ for f in rro-disabled ro rw; do touch /mnt-$f/tmpfs/foo; done
 					},
 				},
 				{
-					Image:   busyboxImage,
+					Image:   BusyboxImage,
 					Name:    "unmount",
 					Command: []string{"umount", "/mnt/tmpfs"},
 					SecurityContext: &v1.SecurityContext{
@@ -319,7 +320,7 @@ for f in rro-disabled ro rw; do touch /mnt-$f/tmpfs/foo; done
 			},
 			Containers: []v1.Container{
 				{
-					Image:   busyboxImage,
+					Image:   BusyboxImage,
 					Name:    "completion",
 					Command: []string{"echo", "OK"},
 				},
@@ -346,7 +347,7 @@ func podForRROUnsupported(name, ns string) *v1.Pod {
 			RestartPolicy: v1.RestartPolicyNever,
 			InitContainers: []v1.Container{
 				{
-					Image:   busyboxImage,
+					Image:   BusyboxImage,
 					Name:    "mount",
 					Command: []string{"sh", "-euxc", "mkdir -p /mnt/tmpfs && mount -t tmpfs none /mnt/tmpfs"},
 					SecurityContext: &v1.SecurityContext{
@@ -361,7 +362,7 @@ func podForRROUnsupported(name, ns string) *v1.Pod {
 					},
 				},
 				{
-					Image: busyboxImage,
+					Image: BusyboxImage,
 					Name:  "test",
 					Command: []string{"sh", "-euxc", `
 for f in rro-if-possible rro-disabled ro rw; do touch /mnt-$f/tmpfs/foo; done
@@ -391,7 +392,7 @@ for f in rro-if-possible rro-disabled ro rw; do touch /mnt-$f/tmpfs/foo; done
 					},
 				},
 				{
-					Image:   busyboxImage,
+					Image:   BusyboxImage,
 					Name:    "unmount",
 					Command: []string{"umount", "/mnt/tmpfs"},
 					SecurityContext: &v1.SecurityContext{
@@ -408,7 +409,7 @@ for f in rro-if-possible rro-disabled ro rw; do touch /mnt-$f/tmpfs/foo; done
 			},
 			Containers: []v1.Container{
 				{
-					Image:   busyboxImage,
+					Image:   BusyboxImage,
 					Name:    "completion",
 					Command: []string{"echo", "OK"},
 				},

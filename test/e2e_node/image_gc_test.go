@@ -28,6 +28,7 @@ import (
 	kubeletconfig "k8s.io/kubernetes/pkg/kubelet/apis/config"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 
 	"github.com/onsi/ginkgo/v2"
@@ -47,14 +48,14 @@ var _ = SIGDescribe("ImageGarbageCollect", framework.WithSerial(), framework.Wit
 	var is internalapi.ImageManagerService
 	ginkgo.BeforeEach(func() {
 		var err error
-		_, is, err = getCRIClient()
+		_, is, err = GetCRIClient()
 		framework.ExpectNoError(err)
 	})
 	ginkgo.AfterEach(func(ctx context.Context) {
 		framework.ExpectNoError(PrePullAllImages(ctx))
 	})
 	ginkgo.Context("when ImageMaximumGCAge is set", func() {
-		tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+		TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
 			initialConfig.ImageMaximumGCAge = metav1.Duration{Duration: time.Duration(time.Minute * 1)}
 			initialConfig.ImageMinimumGCAge = metav1.Duration{Duration: time.Duration(time.Second * 1)}
 			if initialConfig.FeatureGates == nil {
@@ -66,7 +67,7 @@ var _ = SIGDescribe("ImageGarbageCollect", framework.WithSerial(), framework.Wit
 			pod := innocentPod()
 			e2epod.NewPodClient(f).CreateBatch(ctx, []*v1.Pod{pod})
 
-			_, err := is.PullImage(context.Background(), &runtimeapi.ImageSpec{Image: agnhostImage}, nil, nil)
+			_, err := is.PullImage(context.Background(), &runtimeapi.ImageSpec{Image: AgnhostImage}, nil, nil)
 			framework.ExpectNoError(err)
 
 			allImages, err := is.ListImages(context.Background(), &runtimeapi.ImageFilter{})
@@ -86,7 +87,7 @@ var _ = SIGDescribe("ImageGarbageCollect", framework.WithSerial(), framework.Wit
 			pod := innocentPod()
 			e2epod.NewPodClient(f).CreateBatch(ctx, []*v1.Pod{pod})
 
-			_, err := is.PullImage(context.Background(), &runtimeapi.ImageSpec{Image: agnhostImage}, nil, nil)
+			_, err := is.PullImage(context.Background(), &runtimeapi.ImageSpec{Image: AgnhostImage}, nil, nil)
 			framework.ExpectNoError(err)
 
 			allImages, err := is.ListImages(context.Background(), &runtimeapi.ImageFilter{})
@@ -94,7 +95,7 @@ var _ = SIGDescribe("ImageGarbageCollect", framework.WithSerial(), framework.Wit
 
 			e2epod.NewPodClient(f).DeleteSync(ctx, pod.ObjectMeta.Name, metav1.DeleteOptions{}, e2epod.DefaultPodDeletionTimeout)
 
-			restartKubelet(ctx, true)
+			RestartKubelet(ctx, true)
 
 			// Wait until the maxAge of the image after the kubelet is restarted to ensure it doesn't
 			// GC too early.

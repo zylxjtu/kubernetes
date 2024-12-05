@@ -36,6 +36,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 	admissionapi "k8s.io/pod-security-admission/api"
 
@@ -69,7 +70,7 @@ var _ = SIGDescribe("KubeletSeparateDiskGC", nodefeature.KubeletSeparateDiskGC, 
 
 	f.Context("when there is disk pressure", framework.WithSlow(), framework.WithSerial(), framework.WithDisruptive(), func() {
 		f.Context("on imageFs", func() {
-			tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+			TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
 				initialConfig.EvictionHard = map[string]string{
 					string(evictionapi.SignalNodeFsAvailable):      "30%",
 					string(evictionapi.SignalContainerFsAvailable): "30%",
@@ -91,7 +92,7 @@ var _ = SIGDescribe("KubeletSeparateDiskGC", nodefeature.KubeletSeparateDiskGC, 
 			expectedStarvedResource := v1.ResourceEphemeralStorage
 			diskTestInMb := 5000
 
-			tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+			TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
 				initialConfig.EvictionHard = map[string]string{
 					string(evictionapi.SignalNodeFsAvailable):  "30%",
 					string(evictionapi.SignalImageFsAvailable): "30%",
@@ -118,7 +119,7 @@ func runImageFsPressureTest(f *framework.Framework, pressureTimeout time.Duratio
 	ginkgo.Context("", func() {
 		ginkgo.BeforeEach(func(ctx context.Context) {
 			// Reduce memory usage in the allocatable cgroup to ensure we do not have MemoryPressure.
-			reduceAllocatableMemoryUsageIfCgroupv1()
+			ReduceAllocatableMemoryUsageIfCgroupv1()
 			// Nodes do not immediately report local storage capacity,
 			// so wait a little to allow pods requesting local storage to be scheduled.
 			time.Sleep(30 * time.Second)
@@ -131,7 +132,7 @@ func runImageFsPressureTest(f *framework.Framework, pressureTimeout time.Duratio
 		})
 
 		ginkgo.It("should evict all of the correct pods", func(ctx context.Context) {
-			_, is, err := getCRIClient()
+			_, is, err := GetCRIClient()
 			framework.ExpectNoError(err)
 			resp, err := is.ImageFsInfo(ctx)
 			framework.ExpectNoError(err)
@@ -168,7 +169,7 @@ func runImageFsPressureTest(f *framework.Framework, pressureTimeout time.Duratio
 						framework.Logf("Node does NOT have condition: %s", expectedNodeCondition)
 					}
 				}
-				logKubeletLatencyMetrics(ctx, kubeletmetrics.EvictionStatsAgeKey)
+				LogKubeletLatencyMetrics(ctx, kubeletmetrics.EvictionStatsAgeKey)
 				logFunc(ctx)
 				return verifyEvictionOrdering(ctx, f, testSpecs)
 			}, pressureTimeout, evictionPollInterval).Should(gomega.Succeed())
@@ -195,7 +196,7 @@ func runImageFsPressureTest(f *framework.Framework, pressureTimeout time.Duratio
 			ginkgo.By(fmt.Sprintf("Waiting for NodeCondition: %s to no longer exist on the node", expectedNodeCondition))
 			gomega.Eventually(ctx, func(ctx context.Context) error {
 				logFunc(ctx)
-				logKubeletLatencyMetrics(ctx, kubeletmetrics.EvictionStatsAgeKey)
+				LogKubeletLatencyMetrics(ctx, kubeletmetrics.EvictionStatsAgeKey)
 				if expectedNodeCondition != noPressure && hasNodeCondition(ctx, f, expectedNodeCondition) {
 					return fmt.Errorf("conditions haven't returned to normal, node still has: %s", expectedNodeCondition)
 				}
@@ -208,7 +209,7 @@ func runImageFsPressureTest(f *framework.Framework, pressureTimeout time.Duratio
 					return fmt.Errorf("condition %s disappeared and then reappeared", expectedNodeCondition)
 				}
 				logFunc(ctx)
-				logKubeletLatencyMetrics(ctx, kubeletmetrics.EvictionStatsAgeKey)
+				LogKubeletLatencyMetrics(ctx, kubeletmetrics.EvictionStatsAgeKey)
 				return verifyEvictionOrdering(ctx, f, testSpecs)
 			}, postTestConditionMonitoringPeriod, evictionPollInterval).Should(gomega.Succeed())
 		})
@@ -241,7 +242,7 @@ func runImageFsPressureTest(f *framework.Framework, pressureTimeout time.Duratio
 				return nil
 			}, pressureDisappearTimeout, evictionPollInterval).Should(gomega.BeNil())
 
-			reduceAllocatableMemoryUsageIfCgroupv1()
+			ReduceAllocatableMemoryUsageIfCgroupv1()
 			ginkgo.By("making sure we have all the required images for testing")
 			prePullImagesIfNecessary()
 
@@ -273,8 +274,8 @@ func runImageFsPressureTest(f *framework.Framework, pressureTimeout time.Duratio
 
 			if ginkgo.CurrentSpecReport().Failed() {
 				if framework.TestContext.DumpLogsOnFailure {
-					logPodEvents(ctx, f)
-					logNodeEvents(ctx, f)
+					LogPodEvents(ctx, f)
+					LogNodeEvents(ctx, f)
 				}
 			}
 		})
@@ -302,7 +303,7 @@ func removeDiskPressure(diskToPressure string) error {
 }
 
 func hasSplitFileSystem(ctx context.Context) bool {
-	_, is, err := getCRIClient()
+	_, is, err := GetCRIClient()
 	framework.ExpectNoError(err)
 	resp, err := is.ImageFsInfo(ctx)
 	framework.ExpectNoError(err)

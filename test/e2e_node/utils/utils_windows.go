@@ -17,7 +17,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2enode
+package utils
 
 import (
 	"context"
@@ -58,7 +58,7 @@ func findKubeletServiceName(running bool) string {
 // Warning: the "current" kubelet is poorly defined. The "current" kubelet is assumed to be the most
 // recent kubelet service unit, IOW there is not a unique ID we use to bind explicitly a kubelet
 // instance to a test run.
-func restartKubelet(ctx context.Context, running bool) {
+func RestartKubelet(ctx context.Context, running bool) {
 	kubeletServiceName := findKubeletServiceName(running)
 	// reset the kubelet service start-limit-hit
 	stdout, err := exec.CommandContext(ctx, "sudo", "systemctl", "reset-failed", kubeletServiceName).CombinedOutput()
@@ -69,7 +69,7 @@ func restartKubelet(ctx context.Context, running bool) {
 }
 
 // mustStopKubelet will kill the running kubelet, and returns a func that will restart the process again
-func mustStopKubelet(ctx context.Context, f *framework.Framework) func(ctx context.Context) {
+func MustStopKubelet(ctx context.Context, f *framework.Framework) func(ctx context.Context) {
 	// TODO: change the windows part
 	kubeletServiceName := findKubeletServiceName(true)
 
@@ -82,21 +82,26 @@ func mustStopKubelet(ctx context.Context, f *framework.Framework) func(ctx conte
 
 	// wait until the kubelet health check fail
 	gomega.Eventually(ctx, func() bool {
-		return kubeletHealthCheck(kubeletHealthCheckURL)
+		return KubeletHealthCheck(KubeletHealthCheckURL)
 	}, f.Timeouts.PodStart, f.Timeouts.Poll).Should(gomega.BeFalseBecause("kubelet was expected to be stopped but it is still running"))
 
 	return func(ctx context.Context) {
 		// we should restart service, otherwise the transient service start will fail
 		stdout, err := exec.CommandContext(ctx, "sudo", "systemctl", "restart", kubeletServiceName).CombinedOutput()
 		framework.ExpectNoError(err, "Failed to restart kubelet with systemctl: %v, %v", err, stdout)
-		waitForKubeletToStart(ctx, f)
+		WaitForKubeletToStart(ctx, f)
 	}
 }
 
-func stopContainerRuntime() error {
+func StopContainerRuntime() error {
 	return nil
 }
 
-func startContainerRuntime() error {
+func StartContainerRuntime() error {
 	return nil
+}
+
+// IsCgroup2UnifiedMode returns whether we are running in cgroup v2 unified mode.
+func IsCgroup2UnifiedMode() bool {
+	return false
 }

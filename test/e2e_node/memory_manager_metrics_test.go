@@ -36,6 +36,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2emetrics "k8s.io/kubernetes/test/e2e/framework/metrics"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 )
 
@@ -50,7 +51,7 @@ var _ = SIGDescribe("Memory Manager Metrics", framework.WithSerial(), feature.Me
 		ginkgo.BeforeEach(func(ctx context.Context) {
 			var err error
 			if oldCfg == nil {
-				oldCfg, err = getCurrentKubeletConfig(ctx)
+				oldCfg, err = GetCurrentKubeletConfig(ctx)
 				framework.ExpectNoError(err)
 			}
 
@@ -71,12 +72,12 @@ var _ = SIGDescribe("Memory Manager Metrics", framework.WithSerial(), feature.Me
 					evictionHard:   map[string]string{evictionHardMemory: "100Mi"},
 				},
 			)
-			updateKubeletConfig(ctx, f, newCfg, true)
+			UpdateKubeletConfig(ctx, f, newCfg, true)
 			ginkgo.DeferCleanup(func(ctx context.Context) {
 				if testPod != nil {
 					deletePodSyncByName(ctx, f, testPod.Name)
 				}
-				updateKubeletConfig(ctx, f, oldCfg, true)
+				UpdateKubeletConfig(ctx, f, oldCfg, true)
 			})
 
 			count := printAllPodsOnNode(ctx, f.ClientSet, framework.TestContext.NodeName)

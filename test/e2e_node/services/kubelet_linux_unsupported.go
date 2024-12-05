@@ -1,5 +1,5 @@
-//go:build linux
-// +build linux
+//go:build !linux && !windows
+// +build !linux,!windows
 
 /*
 Copyright 2024 The Kubernetes Authors.
@@ -21,7 +21,6 @@ package services
 
 import (
 	"os/exec"
-	"strings"
 
 	kubeletconfig "k8s.io/kubernetes/pkg/kubelet/apis/config"
 )
@@ -35,19 +34,5 @@ func adjustPlatformSpecificKubeletConfig(kc *kubeletconfig.KubeletConfiguration)
 
 // updateCmdArgs will update platform specific command arguments.
 func adjustPlatformSpecificKubeletArgs(cmdArgs []string, isSystemd bool, killCommand *exec.Cmd, restartCommand *exec.Cmd) ([]string, *exec.Cmd, *exec.Cmd, error) {
-	// Adjust the args if we are running kubelet with systemd.
-	if isSystemd {
-		adjustArgsForSystemd(cmdArgs)
-	}
-
 	return cmdArgs, killCommand, restartCommand, nil
-}
-
-// adjustArgsForSystemd escape special characters in kubelet arguments for systemd. Systemd
-// may try to do auto expansion without escaping.
-func adjustArgsForSystemd(args []string) {
-	for i := range args {
-		args[i] = strings.Replace(args[i], "%", "%%", -1)
-		args[i] = strings.Replace(args[i], "$", "$$", -1)
-	}
 }

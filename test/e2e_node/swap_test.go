@@ -29,6 +29,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/apis/config"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 
 	"github.com/onsi/ginkgo/v2"
@@ -58,7 +59,7 @@ var (
 
 var _ = SIGDescribe("Swap", "[LinuxOnly]", nodefeature.Swap, framework.WithSerial(), func() {
 	f := framework.NewDefaultFramework("swap-qos")
-	addAfterEachForCleaningUpPods(f)
+	AddAfterEachForCleaningUpPods(f)
 	f.NamespacePodSecurityLevel = admissionapi.LevelBaseline
 
 	ginkgo.BeforeEach(func() {
@@ -113,7 +114,7 @@ var _ = SIGDescribe("Swap", "[LinuxOnly]", nodefeature.Swap, framework.WithSeria
 		}
 
 		f.Context("Basic functionality", func() {
-			tempSetCurrentKubeletConfig(f, enableLimitedSwap)
+			TempSetCurrentKubeletConfig(f, enableLimitedSwap)
 
 			ginkgo.DescribeTable("with configuration", func(qosClass v1.PodQOSClass, memoryRequestEqualLimit bool) {
 				ginkgo.By(fmt.Sprintf("Creating a pod of QOS class %s. memoryRequestEqualLimit: %t", qosClass, memoryRequestEqualLimit))
@@ -181,7 +182,7 @@ var _ = SIGDescribe("Swap", "[LinuxOnly]", nodefeature.Swap, framework.WithSeria
 			})
 
 			ginkgo.Context("LimitedSwap", func() {
-				tempSetCurrentKubeletConfig(f, enableLimitedSwap)
+				TempSetCurrentKubeletConfig(f, enableLimitedSwap)
 
 				getRequestBySwapLimit := func(swapPercentage int64) *resource.Quantity {
 					gomega.ExpectWithOffset(1, swapPercentage).To(gomega.And(
@@ -336,7 +337,7 @@ func getSleepingPod(namespace string) *v1.Pod {
 			Containers: []v1.Container{
 				{
 					Name:    "busybox-container",
-					Image:   busyboxImage,
+					Image:   BusyboxImage,
 					Command: []string{"sleep", "600"},
 				},
 			},
@@ -468,7 +469,7 @@ func calcSwapForBurstablePod(f *framework.Framework, pod *v1.Pod) int64 {
 }
 
 func getSwapBehavior() string {
-	kubeletCfg, err := getCurrentKubeletConfig(context.Background())
+	kubeletCfg, err := GetCurrentKubeletConfig(context.Background())
 	framework.ExpectNoError(err, "cannot get kubelet config")
 
 	swapBehavior := kubeletCfg.MemorySwap.SwapBehavior

@@ -30,6 +30,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/cm"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 
 	"github.com/onsi/ginkgo/v2"
@@ -39,8 +40,8 @@ import (
 func makePodToVerifyPids(baseName string, pidsLimit resource.Quantity) *v1.Pod {
 	// convert the cgroup name to its literal form
 	cgroupFsName := ""
-	cgroupName := cm.NewCgroupName(cm.RootCgroupName, defaultNodeAllocatableCgroup, baseName)
-	if kubeletCfg.CgroupDriver == "systemd" {
+	cgroupName := cm.NewCgroupName(cm.RootCgroupName, DefaultNodeAllocatableCgroup, baseName)
+	if KubeletCfg.CgroupDriver == "systemd" {
 		cgroupFsName = cgroupName.ToSystemd()
 	} else {
 		cgroupFsName = cgroupName.ToCgroupfs()
@@ -63,7 +64,7 @@ func makePodToVerifyPids(baseName string, pidsLimit resource.Quantity) *v1.Pod {
 			RestartPolicy: v1.RestartPolicyNever,
 			Containers: []v1.Container{
 				{
-					Image:   busyboxImage,
+					Image:   BusyboxImage,
 					Name:    "container" + string(uuid.NewUUID()),
 					Command: []string{"sh", "-c", command},
 					VolumeMounts: []v1.VolumeMount{
@@ -124,10 +125,10 @@ var _ = SIGDescribe("PodPidsLimit", framework.WithSerial(), func() {
 	f := framework.NewDefaultFramework("pids-limit-test")
 	f.NamespacePodSecurityLevel = admissionapi.LevelPrivileged
 	ginkgo.Context("With config updated with pids limits", func() {
-		tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+		TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
 			initialConfig.PodPidsLimit = int64(1024)
 		})
 		runPodPidsLimitTests(f)
-		addAfterEachForCleaningUpPods(f)
+		AddAfterEachForCleaningUpPods(f)
 	})
 })

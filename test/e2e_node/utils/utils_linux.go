@@ -17,7 +17,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2enode
+package utils
 
 import (
 	"context"
@@ -38,8 +38,8 @@ func IsCgroup2UnifiedMode() bool {
 	return libcontainercgroups.IsCgroup2UnifiedMode()
 }
 
-// addCRIProxyInjector registers an injector function for the CRIProxy.
-func addCRIProxyInjector(proxy *criproxy.RemoteRuntime, injector func(apiName string) error) error {
+// AddCRIProxyInjector registers an injector function for the CRIProxy.
+func AddCRIProxyInjector(proxy *criproxy.RemoteRuntime, injector func(apiName string) error) error {
 	if proxy == nil {
 		return fmt.Errorf("failed to add injector because the CRI Proxy is undefined")
 	}
@@ -47,8 +47,8 @@ func addCRIProxyInjector(proxy *criproxy.RemoteRuntime, injector func(apiName st
 	return nil
 }
 
-// resetCRIProxyInjector resets all injector functions for the CRIProxy.
-func resetCRIProxyInjector(proxy *criproxy.RemoteRuntime) error {
+// ResetCRIProxyInjector resets all injector functions for the CRIProxy.
+func ResetCRIProxyInjector(proxy *criproxy.RemoteRuntime) error {
 	if proxy == nil {
 		return fmt.Errorf("failed to reset injector because the CRI Proxy is undefined")
 	}
@@ -88,7 +88,7 @@ func findContainerRuntimeServiceName() (string, error) {
 	framework.ExpectNoError(err, "Failed to setup dbus connection")
 	defer conn.Close()
 
-	runtimePids, err := getPidsForProcess(framework.TestContext.ContainerRuntimeProcessName, framework.TestContext.ContainerRuntimePidFile)
+	runtimePids, err := GetPidsForProcess(framework.TestContext.ContainerRuntimeProcessName, framework.TestContext.ContainerRuntimePidFile)
 	framework.ExpectNoError(err, "failed to get list of container runtime pids")
 	gomega.Expect(runtimePids).To(gomega.HaveLen(1), "Unexpected number of container runtime pids. Expected 1 but got %v", len(runtimePids))
 
@@ -115,8 +115,8 @@ func performContainerRuntimeUnitOp(op containerRuntimeUnitOp) error {
 	framework.ExpectNoError(err, "Failed to setup dbus connection")
 	defer conn.Close()
 
-	if containerRuntimeUnitName == "" {
-		containerRuntimeUnitName, err = findContainerRuntimeServiceName()
+	if ContainerRuntimeUnitName == "" {
+		ContainerRuntimeUnitName, err = findContainerRuntimeServiceName()
 		framework.ExpectNoError(err, "Failed to find container runtime name")
 	}
 
@@ -124,9 +124,9 @@ func performContainerRuntimeUnitOp(op containerRuntimeUnitOp) error {
 
 	switch op {
 	case startContainerRuntimeUnitOp:
-		_, err = conn.StartUnitContext(ctx, containerRuntimeUnitName, "replace", reschan)
+		_, err = conn.StartUnitContext(ctx, ContainerRuntimeUnitName, "replace", reschan)
 	case stopContainerRuntimeUnitOp:
-		_, err = conn.StopUnitContext(ctx, containerRuntimeUnitName, "replace", reschan)
+		_, err = conn.StopUnitContext(ctx, ContainerRuntimeUnitName, "replace", reschan)
 	default:
 		framework.Failf("Unexpected container runtime op: %v", op)
 	}
@@ -138,15 +138,15 @@ func performContainerRuntimeUnitOp(op containerRuntimeUnitOp) error {
 	return nil
 }
 
-func stopContainerRuntime() error {
+func StopContainerRuntime() error {
 	return performContainerRuntimeUnitOp(stopContainerRuntimeUnitOp)
 }
 
-func startContainerRuntime() error {
+func StartContainerRuntime() error {
 	return performContainerRuntimeUnitOp(startContainerRuntimeUnitOp)
 }
 
-// restartKubelet restarts the current kubelet service.
+// RestartKubelet restarts the current kubelet service.
 // the "current" kubelet service is the instance managed by the current e2e_node test run.
 // If `running` is true, restarts only if the current kubelet is actually running. In some cases,
 // the kubelet may have exited or can be stopped, typically because it was intentionally stopped
@@ -154,7 +154,7 @@ func startContainerRuntime() error {
 // Warning: the "current" kubelet is poorly defined. The "current" kubelet is assumed to be the most
 // recent kubelet service unit, IOW there is not a unique ID we use to bind explicitly a kubelet
 // instance to a test run.
-func restartKubelet(ctx context.Context, running bool) {
+func RestartKubelet(ctx context.Context, running bool) {
 	kubeletServiceName := findKubeletServiceName(running)
 	// reset the kubelet service start-limit-hit
 	stdout, err := exec.CommandContext(ctx, "sudo", "systemctl", "reset-failed", kubeletServiceName).CombinedOutput()
@@ -164,8 +164,8 @@ func restartKubelet(ctx context.Context, running bool) {
 	framework.ExpectNoError(err, "Failed to restart kubelet with systemctl: %v, %s", err, string(stdout))
 }
 
-// mustStopKubelet will kill the running kubelet, and returns a func that will restart the process again
-func mustStopKubelet(ctx context.Context, f *framework.Framework) func(ctx context.Context) {
+// MustStopKubelet will kill the running kubelet, and returns a func that will restart the process again
+func MustStopKubelet(ctx context.Context, f *framework.Framework) func(ctx context.Context) {
 	kubeletServiceName := findKubeletServiceName(true)
 
 	// reset the kubelet service start-limit-hit
@@ -177,13 +177,13 @@ func mustStopKubelet(ctx context.Context, f *framework.Framework) func(ctx conte
 
 	// wait until the kubelet health check fail
 	gomega.Eventually(ctx, func() bool {
-		return kubeletHealthCheck(kubeletHealthCheckURL)
+		return KubeletHealthCheck(KubeletHealthCheckURL)
 	}, f.Timeouts.PodStart, f.Timeouts.Poll).Should(gomega.BeFalseBecause("kubelet was expected to be stopped but it is still running"))
 
 	return func(ctx context.Context) {
 		// we should restart service, otherwise the transient service start will fail
 		stdout, err := exec.CommandContext(ctx, "sudo", "systemctl", "restart", kubeletServiceName).CombinedOutput()
 		framework.ExpectNoError(err, "Failed to restart kubelet with systemctl: %v, %v", err, stdout)
-		waitForKubeletToStart(ctx, f)
+		WaitForKubeletToStart(ctx, f)
 	}
 }

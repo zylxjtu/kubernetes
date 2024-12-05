@@ -28,6 +28,7 @@ import (
 	kubeletconfig "k8s.io/kubernetes/pkg/kubelet/apis/config"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 
 	"github.com/onsi/ginkgo/v2"
@@ -120,7 +121,7 @@ var _ = SIGDescribe("OOMKiller [LinuxOnly]", framework.WithNodeConformance(), fr
 func runOomKillerTest(f *framework.Framework, testCase testCase, kubeReservedMemory float64) {
 	ginkgo.Context(testCase.name, func() {
 		// Update KubeReservedMemory in KubeletConfig.
-		tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+		TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
 			if kubeReservedMemory > 0 {
 				if initialConfig.KubeReserved == nil {
 					initialConfig.KubeReserved = map[string]string{}
@@ -129,7 +130,7 @@ func runOomKillerTest(f *framework.Framework, testCase testCase, kubeReservedMem
 				// memory is equal to node capacity. Hence, reserving a fraction of node's memory capacity for
 				// K8s components such that node allocatable memory is less than node capacity to
 				// observe OOM kills at cgroup level instead of system OOM kills.
-				initialConfig.KubeReserved["memory"] = fmt.Sprintf("%d", int(kubeReservedMemory*getLocalNode(context.TODO(), f).Status.Capacity.Memory().AsApproximateFloat64()))
+				initialConfig.KubeReserved["memory"] = fmt.Sprintf("%d", int(kubeReservedMemory*GetLocalNode(context.TODO(), f).Status.Capacity.Memory().AsApproximateFloat64()))
 			}
 
 			initialConfig.SingleProcessOOMKill = testCase.enableSingleProcessKill
@@ -137,7 +138,7 @@ func runOomKillerTest(f *framework.Framework, testCase testCase, kubeReservedMem
 
 		ginkgo.BeforeEach(func() {
 			// Precautionary check that kubelet is healthy before running the test.
-			waitForKubeletToStart(context.TODO(), f)
+			WaitForKubeletToStart(context.TODO(), f)
 
 			ginkgo.By("setting up the pod to be used in the test")
 			e2epod.NewPodClient(f).Create(context.TODO(), testCase.podSpec)
@@ -231,7 +232,7 @@ func getInitContainerOOMTargetPod(podName string, ctnName string, createContaine
 			Containers: []v1.Container{
 				{
 					Name:  "busybox",
-					Image: busyboxImage,
+					Image: BusyboxImage,
 				},
 			},
 		},
@@ -243,7 +244,7 @@ func getInitContainerOOMTargetPod(podName string, ctnName string, createContaine
 func getOOMTargetContainer(name string) v1.Container {
 	return v1.Container{
 		Name:  name,
-		Image: busyboxImage,
+		Image: BusyboxImage,
 		Command: []string{
 			"sh",
 			"-c",
@@ -276,7 +277,7 @@ func getOOMTargetContainer(name string) v1.Container {
 func getOOMTargetContainerMultiProcess(name string) v1.Container {
 	return v1.Container{
 		Name:  name,
-		Image: busyboxImage,
+		Image: BusyboxImage,
 		Command: []string{
 			"sh",
 			"-c",
@@ -309,7 +310,7 @@ func getOOMTargetContainerMultiProcess(name string) v1.Container {
 func getOOMTargetContainerWithoutLimit(name string) v1.Container {
 	return v1.Container{
 		Name:  name,
-		Image: busyboxImage,
+		Image: BusyboxImage,
 		Command: []string{
 			"sh",
 			"-c",

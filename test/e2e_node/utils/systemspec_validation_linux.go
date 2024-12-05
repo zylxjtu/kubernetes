@@ -17,7 +17,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2enode
+package utils
 
 import (
 	"encoding/json"
@@ -34,11 +34,11 @@ import (
 // host root filesystem as readonly to /rootfs.
 const rootfs = "/rootfs"
 
-func systemValidation(systemSpecFile *string) {
+func SystemValidation(systemSpecFile *string) {
 	spec := &system.DefaultSysSpec
 	if *systemSpecFile != "" {
 		var err error
-		spec, err = loadSystemSpecFromFile(*systemSpecFile)
+		spec, err = LoadSystemSpecFromFile(*systemSpecFile)
 		if err != nil {
 			klog.Exitf("Failed to load system spec: %v", err)
 		}
@@ -62,9 +62,9 @@ func systemValidation(systemSpecFile *string) {
 	return
 }
 
-// loadSystemSpecFromFile returns the system spec from the file with the
+// LoadSystemSpecFromFile returns the system spec from the file with the
 // filename.
-func loadSystemSpecFromFile(filename string) (*system.SysSpec, error) {
+func LoadSystemSpecFromFile(filename string) (*system.SysSpec, error) {
 	b, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err

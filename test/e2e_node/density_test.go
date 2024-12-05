@@ -45,6 +45,7 @@ import (
 	e2ekubelet "k8s.io/kubernetes/test/e2e/framework/kubelet"
 	e2emetrics "k8s.io/kubernetes/test/e2e/framework/metrics"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 	admissionapi "k8s.io/pod-security-admission/api"
 )
@@ -70,7 +71,7 @@ var _ = SIGDescribe("Density", framework.WithSerial(), framework.WithSlow(), fun
 
 	ginkgo.BeforeEach(func(ctx context.Context) {
 		// Start a standalone cadvisor pod using 'createSync', the pod is running when it returns
-		e2epod.NewPodClient(f).CreateSync(ctx, getCadvisorPod())
+		e2epod.NewPodClient(f).CreateSync(ctx, GetCadvisorPod())
 		// Resource collector monitors fine-grain CPU/memory usage by a standalone Cadvisor with
 		// 1s housingkeeping interval
 		rc = NewResourceCollector(containerStatsPollingPeriod)
@@ -113,7 +114,7 @@ var _ = SIGDescribe("Density", framework.WithSerial(), framework.WithSlow(), fun
 			desc := fmt.Sprintf("latency/resource should be within limit when create %d pods with %v interval", itArg.podsNr, itArg.interval)
 			ginkgo.It(desc, func(ctx context.Context) {
 				itArg.createMethod = "batch"
-				testInfo := getTestNodeInfo(f, itArg.getTestName(), desc)
+				testInfo := GetTestNodeInfo(f, itArg.getTestName(), desc)
 
 				batchLag, e2eLags := runDensityBatchTest(ctx, f, rc, itArg, testInfo, false)
 
@@ -171,7 +172,7 @@ var _ = SIGDescribe("Density", framework.WithSerial(), framework.WithSlow(), fun
 			desc := fmt.Sprintf("latency/resource should be within limit when create %d pods with %v interval [Benchmark][NodeSpecialFeature:Benchmark]", itArg.podsNr, itArg.interval)
 			ginkgo.It(desc, func(ctx context.Context) {
 				itArg.createMethod = "batch"
-				testInfo := getTestNodeInfo(f, itArg.getTestName(), desc)
+				testInfo := GetTestNodeInfo(f, itArg.getTestName(), desc)
 
 				batchLag, e2eLags := runDensityBatchTest(ctx, f, rc, itArg, testInfo, true)
 
@@ -211,14 +212,14 @@ var _ = SIGDescribe("Density", framework.WithSerial(), framework.WithSlow(), fun
 				// It makes the pod startup latency of Kubelet (creation throughput as well) under-estimated.
 				// Here we set API QPS limit from default 5 to 60 in order to test real Kubelet performance.
 				// Note that it will cause higher resource usage.
-				tempSetCurrentKubeletConfig(f, func(ctx context.Context, cfg *kubeletconfig.KubeletConfiguration) {
+				TempSetCurrentKubeletConfig(f, func(ctx context.Context, cfg *kubeletconfig.KubeletConfiguration) {
 					framework.Logf("Old QPS limit is: %d", cfg.KubeAPIQPS)
 					// Set new API QPS limit
 					cfg.KubeAPIQPS = int32(itArg.APIQPSLimit)
 				})
 				ginkgo.It(desc, func(ctx context.Context) {
 					itArg.createMethod = "batch"
-					testInfo := getTestNodeInfo(f, itArg.getTestName(), desc)
+					testInfo := GetTestNodeInfo(f, itArg.getTestName(), desc)
 					batchLag, e2eLags := runDensityBatchTest(ctx, f, rc, itArg, testInfo, true)
 
 					ginkgo.By("Verifying latency")
@@ -257,7 +258,7 @@ var _ = SIGDescribe("Density", framework.WithSerial(), framework.WithSlow(), fun
 			desc := fmt.Sprintf("latency/resource should be within limit when create %d pods with %d background pods", itArg.podsNr, itArg.bgPodsNr)
 			ginkgo.It(desc, func(ctx context.Context) {
 				itArg.createMethod = "sequence"
-				testInfo := getTestNodeInfo(f, itArg.getTestName(), desc)
+				testInfo := GetTestNodeInfo(f, itArg.getTestName(), desc)
 				batchlag, e2eLags := runDensitySeqTest(ctx, f, rc, itArg, testInfo)
 
 				ginkgo.By("Verifying latency")
@@ -290,7 +291,7 @@ var _ = SIGDescribe("Density", framework.WithSerial(), framework.WithSlow(), fun
 			desc := fmt.Sprintf("latency/resource should be within limit when create %d pods with %d background pods [Benchmark][NodeSpeicalFeature:Benchmark]", itArg.podsNr, itArg.bgPodsNr)
 			ginkgo.It(desc, func(ctx context.Context) {
 				itArg.createMethod = "sequence"
-				testInfo := getTestNodeInfo(f, itArg.getTestName(), desc)
+				testInfo := GetTestNodeInfo(f, itArg.getTestName(), desc)
 				batchlag, e2eLags := runDensitySeqTest(ctx, f, rc, itArg, testInfo)
 
 				ginkgo.By("Verifying latency")
@@ -346,7 +347,7 @@ func runDensityBatchTest(ctx context.Context, f *framework.Framework, rc *Resour
 	)
 
 	// create test pod data structure
-	pods := newTestPods(testArg.podsNr, true, imageutils.GetPauseImageName(), podType)
+	pods := NewTestPods(testArg.podsNr, true, imageutils.GetPauseImageName(), podType)
 
 	// the controller watches the change of pod status
 	controller := newInformerWatchPod(ctx, f, mutex, watchTimes, podType)
@@ -365,8 +366,8 @@ func runDensityBatchTest(ctx context.Context, f *framework.Framework, rc *Resour
 	ginkgo.By("Creating a batch of pods")
 	// It returns a map['pod name']'creation time' containing the creation timestamps
 	createTimes := createBatchPodWithRateControl(ctx, f, pods, testArg.interval)
-	ginkgo.DeferCleanup(deletePodsSync, f, pods)
-	ginkgo.DeferCleanup(deletePodsSync, f, []*v1.Pod{getCadvisorPod()})
+	ginkgo.DeferCleanup(DeletePodsSync, f, pods)
+	ginkgo.DeferCleanup(DeletePodsSync, f, []*v1.Pod{GetCadvisorPod()})
 
 	ginkgo.By("Waiting for all Pods to be observed by the watch...")
 
@@ -411,7 +412,7 @@ func runDensityBatchTest(ctx context.Context, f *framework.Framework, rc *Resour
 
 	// Log time series data.
 	if isLogTimeSeries {
-		logDensityTimeSeries(rc, createTimes, watchTimes, testInfo)
+		LogDensityTimeSeries(rc, createTimes, watchTimes, testInfo)
 	}
 	// Log throughput data.
 	logPodCreateThroughput(batchLag, e2eLags, testArg.podsNr, testInfo)
@@ -425,15 +426,15 @@ func runDensitySeqTest(ctx context.Context, f *framework.Framework, rc *Resource
 		podType               = "density_test_pod"
 		sleepBeforeCreatePods = 30 * time.Second
 	)
-	bgPods := newTestPods(testArg.bgPodsNr, true, imageutils.GetPauseImageName(), "background_pod")
-	testPods := newTestPods(testArg.podsNr, true, imageutils.GetPauseImageName(), podType)
+	bgPods := NewTestPods(testArg.bgPodsNr, true, imageutils.GetPauseImageName(), "background_pod")
+	testPods := NewTestPods(testArg.podsNr, true, imageutils.GetPauseImageName(), podType)
 
 	ginkgo.By("Creating a batch of background pods")
 
 	// CreatBatch is synchronized, all pods are running when it returns
 	e2epod.NewPodClient(f).CreateBatch(ctx, bgPods)
-	ginkgo.DeferCleanup(deletePodsSync, f, bgPods)
-	ginkgo.DeferCleanup(deletePodsSync, f, []*v1.Pod{getCadvisorPod()})
+	ginkgo.DeferCleanup(DeletePodsSync, f, bgPods)
+	ginkgo.DeferCleanup(DeletePodsSync, f, []*v1.Pod{GetCadvisorPod()})
 
 	time.Sleep(sleepBeforeCreatePods)
 
@@ -442,7 +443,7 @@ func runDensitySeqTest(ctx context.Context, f *framework.Framework, rc *Resource
 
 	// Create pods sequentially (back-to-back). e2eLags have been sorted.
 	batchlag, e2eLags := createBatchPodSequential(ctx, f, testPods, podType)
-	ginkgo.DeferCleanup(deletePodsSync, f, testPods)
+	ginkgo.DeferCleanup(DeletePodsSync, f, testPods)
 
 	// Log throughput data.
 	logPodCreateThroughput(batchlag, e2eLags, testArg.podsNr, testInfo)
@@ -634,7 +635,7 @@ func logAndVerifyLatency(ctx context.Context, batchLag time.Duration, e2eLags []
 	podStartupLatency := extractLatencyMetrics(e2eLags)
 
 	// log latency perf data
-	logPerfData(getLatencyPerfData(podStartupLatency, testInfo), "latency")
+	LogPerfData(GetLatencyPerfData(podStartupLatency, testInfo), "latency")
 
 	if isVerify {
 		// check whether e2e pod startup time is acceptable.
@@ -651,5 +652,5 @@ func logAndVerifyLatency(ctx context.Context, batchLag time.Duration, e2eLags []
 
 // logThroughput calculates and logs pod creation throughput.
 func logPodCreateThroughput(batchLag time.Duration, e2eLags []e2emetrics.PodLatencyData, podsNr int, testInfo map[string]string) {
-	logPerfData(getThroughputPerfData(batchLag, e2eLags, podsNr, testInfo), "throughput")
+	LogPerfData(GetThroughputPerfData(batchLag, e2eLags, podsNr, testInfo), "throughput")
 }

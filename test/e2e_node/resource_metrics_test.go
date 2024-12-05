@@ -30,6 +30,7 @@ import (
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 	e2evolume "k8s.io/kubernetes/test/e2e/framework/volume"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 
 	"github.com/prometheus/common/model"
@@ -72,7 +73,7 @@ var _ = SIGDescribe("ResourceMetricsAPI", nodefeature.ResourceMetrics, func() {
 		})
 		ginkgo.It("should report resource usage through the resource metrics api", func(ctx context.Context) {
 			ginkgo.By("Fetching node so we can match against an appropriate memory limit")
-			node := getLocalNode(ctx, f)
+			node := GetLocalNode(ctx, f)
 			memoryCapacity := node.Status.Capacity["memory"]
 			memoryLimit := memoryCapacity.Value()
 
@@ -152,7 +153,7 @@ var _ = SIGDescribe("ResourceMetricsAPI", nodefeature.ResourceMetrics, func() {
 
 func getResourceMetrics(ctx context.Context) (e2emetrics.KubeletMetrics, error) {
 	ginkgo.By("getting stable resource metrics API")
-	return e2emetrics.GrabKubeletMetricsWithoutProxy(ctx, nodeNameOrIP()+":10255", "/metrics/resource")
+	return e2emetrics.GrabKubeletMetricsWithoutProxy(ctx, NodeNameOrIP()+":10255", "/metrics/resource")
 }
 
 func nodeID(element interface{}) string {

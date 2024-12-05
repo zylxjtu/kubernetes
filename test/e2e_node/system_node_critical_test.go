@@ -31,6 +31,7 @@ import (
 	evictionapi "k8s.io/kubernetes/pkg/kubelet/eviction/api"
 	"k8s.io/kubernetes/test/e2e/framework"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 
 	"github.com/onsi/ginkgo/v2"
@@ -52,7 +53,7 @@ var _ = SIGDescribe("SystemNodeCriticalPod", framework.WithSlow(), framework.Wit
 		}
 	})
 	ginkgo.Context("when create a system-node-critical pod", func() {
-		tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+		TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
 			diskConsumed := resource.MustParse("200Mi")
 			summary := eventuallyGetSummary(ctx)
 			availableBytes := *(summary.Node.Fs.AvailableBytes)
@@ -69,11 +70,11 @@ var _ = SIGDescribe("SystemNodeCriticalPod", framework.WithSlow(), framework.Wit
 				ginkgo.By("create a static system-node-critical pod")
 				staticPodName = "static-disk-hog-" + string(uuid.NewUUID())
 				mirrorPodName = staticPodName + "-" + framework.TestContext.NodeName
-				podPath = kubeletCfg.StaticPodPath
+				podPath = KubeletCfg.StaticPodPath
 				// define a static pod consuming disk gradually
 				// the upper limit is 1024 (iterations) * 10485760 bytes (10MB) = 10GB
 				err := createStaticSystemNodeCriticalPod(
-					podPath, staticPodName, ns, busyboxImage, v1.RestartPolicyNever, 1024,
+					podPath, staticPodName, ns, BusyboxImage, v1.RestartPolicyNever, 1024,
 					"dd if=/dev/urandom of=file${i} bs=10485760 count=1 2>/dev/null; sleep .1;",
 				)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())

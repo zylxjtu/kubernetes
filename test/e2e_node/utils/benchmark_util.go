@@ -17,7 +17,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2enode
+package utils
 
 import (
 	"context"
@@ -56,11 +56,11 @@ func dumpDataToFile(data interface{}, labels map[string]string, prefix string) {
 	}
 }
 
-// logPerfData writes the perf data to a standalone json file if the
+// LogPerfData writes the perf data to a standalone json file if the
 // framework.TestContext.ReportDir is non-empty, or to the general build log
 // otherwise. The perfType identifies which type of the perf data it is, such
 // as "cpu" and "memory". If an error occurs, no perf data will be logged.
-func logPerfData(p *perftype.PerfData, perfType string) {
+func LogPerfData(p *perftype.PerfData, perfType string) {
 	if framework.TestContext.ReportDir == "" {
 		printPerfData(p)
 		return
@@ -68,11 +68,11 @@ func logPerfData(p *perftype.PerfData, perfType string) {
 	dumpDataToFile(p, p.Labels, "performance-"+perfType)
 }
 
-// logDensityTimeSeries writes the time series data of operation and resource
+// LogDensityTimeSeries writes the time series data of operation and resource
 // usage to a standalone json file if the framework.TestContext.ReportDir is
 // non-empty, or to the general build log otherwise. If an error occurs,
 // no perf data will be logged.
-func logDensityTimeSeries(rc *ResourceCollector, create, watch map[string]metav1.Time, testInfo map[string]string) {
+func LogDensityTimeSeries(rc *ResourceCollector, create, watch map[string]metav1.Time, testInfo map[string]string) {
 	timeSeries := &nodeperftype.NodeTimeSeries{
 		Labels:  testInfo,
 		Version: e2eperf.CurrentKubeletPerfMetricsVersion,
@@ -109,8 +109,8 @@ func getCumulatedPodTimeSeries(timePerPod map[string]metav1.Time) []int64 {
 	return timeSeries
 }
 
-// getLatencyPerfData returns perf data of pod startup latency.
-func getLatencyPerfData(latency e2emetrics.LatencyMetric, testInfo map[string]string) *perftype.PerfData {
+// GetLatencyPerfData returns perf data of pod startup latency.
+func GetLatencyPerfData(latency e2emetrics.LatencyMetric, testInfo map[string]string) *perftype.PerfData {
 	return &perftype.PerfData{
 		Version: e2eperf.CurrentKubeletPerfMetricsVersion,
 		DataItems: []perftype.DataItem{
@@ -132,8 +132,8 @@ func getLatencyPerfData(latency e2emetrics.LatencyMetric, testInfo map[string]st
 	}
 }
 
-// getThroughputPerfData returns perf data of pod creation startup throughput.
-func getThroughputPerfData(batchLag time.Duration, e2eLags []e2emetrics.PodLatencyData, podsNr int, testInfo map[string]string) *perftype.PerfData {
+// GetThroughputPerfData returns perf data of pod creation startup throughput.
+func GetThroughputPerfData(batchLag time.Duration, e2eLags []e2emetrics.PodLatencyData, podsNr int, testInfo map[string]string) *perftype.PerfData {
 	return &perftype.PerfData{
 		Version: e2eperf.CurrentKubeletPerfMetricsVersion,
 		DataItems: []perftype.DataItem{
@@ -153,10 +153,10 @@ func getThroughputPerfData(batchLag time.Duration, e2eLags []e2emetrics.PodLaten
 	}
 }
 
-// getTestNodeInfo returns a label map containing the test name and
+// GetTestNodeInfo returns a label map containing the test name and
 // description, the name of the node on which the test will be run, the image
 // name of the node, and the node capacities.
-func getTestNodeInfo(f *framework.Framework, testName, testDesc string) map[string]string {
+func GetTestNodeInfo(f *framework.Framework, testName, testDesc string) map[string]string {
 	nodeName := framework.TestContext.NodeName
 	node, err := f.ClientSet.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
 	framework.ExpectNoError(err)

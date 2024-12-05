@@ -44,6 +44,7 @@ import (
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 
 	"github.com/godbus/dbus/v5"
 	v1 "k8s.io/api/core/v1"
@@ -92,7 +93,7 @@ var _ = SIGDescribe("GracefulNodeShutdown", framework.WithSerial(), nodefeature.
 			nodeShutdownGracePeriod = 30 * time.Second
 		)
 
-		tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+		TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
 			initialConfig.FeatureGates = map[string]bool{
 				string(features.GracefulNodeShutdown):                   true,
 				string(features.GracefulNodeShutdownBasedOnPodPriority): false,
@@ -102,7 +103,7 @@ var _ = SIGDescribe("GracefulNodeShutdown", framework.WithSerial(), nodefeature.
 
 		ginkgo.BeforeEach(func(ctx context.Context) {
 			ginkgo.By("Wait for the node to be ready")
-			waitForNodeReady(ctx)
+			WaitForNodeReady(ctx)
 		})
 
 		ginkgo.AfterEach(func() {
@@ -112,7 +113,7 @@ var _ = SIGDescribe("GracefulNodeShutdown", framework.WithSerial(), nodefeature.
 		})
 
 		ginkgo.It("should add the DisruptionTarget pod failure condition to the evicted pods", func(ctx context.Context) {
-			nodeName := getNodeName(ctx, f)
+			nodeName := GetNodeName(ctx, f)
 			nodeSelector := fields.Set{
 				"spec.nodeName": nodeName,
 			}.AsSelector().String()
@@ -194,7 +195,7 @@ var _ = SIGDescribe("GracefulNodeShutdown", framework.WithSerial(), nodefeature.
 			nodeShutdownGracePeriodCriticalPods = 10 * time.Second
 		)
 
-		tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+		TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
 			initialConfig.FeatureGates = map[string]bool{
 				string(features.GracefulNodeShutdown):                   true,
 				string(features.GracefulNodeShutdownBasedOnPodPriority): false,
@@ -206,7 +207,7 @@ var _ = SIGDescribe("GracefulNodeShutdown", framework.WithSerial(), nodefeature.
 
 		ginkgo.BeforeEach(func(ctx context.Context) {
 			ginkgo.By("Wait for the node to be ready")
-			waitForNodeReady(ctx)
+			WaitForNodeReady(ctx)
 		})
 
 		ginkgo.AfterEach(func(ctx context.Context) {
@@ -216,7 +217,7 @@ var _ = SIGDescribe("GracefulNodeShutdown", framework.WithSerial(), nodefeature.
 		})
 
 		ginkgo.It("should be able to gracefully shutdown pods with various grace periods", func(ctx context.Context) {
-			nodeName := getNodeName(ctx, f)
+			nodeName := GetNodeName(ctx, f)
 			nodeSelector := fields.Set{
 				"spec.nodeName": nodeName,
 			}.AsSelector().String()
@@ -389,7 +390,7 @@ var _ = SIGDescribe("GracefulNodeShutdown", framework.WithSerial(), nodefeature.
 			customClassC = getPriorityClass("custom-class-c", 1000)
 		)
 
-		tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+		TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
 			initialConfig.FeatureGates = map[string]bool{
 				string(features.GracefulNodeShutdown):                   true,
 				string(features.GracefulNodeShutdownBasedOnPodPriority): true,
@@ -421,7 +422,7 @@ var _ = SIGDescribe("GracefulNodeShutdown", framework.WithSerial(), nodefeature.
 
 		ginkgo.BeforeEach(func(ctx context.Context) {
 			ginkgo.By("Wait for the node to be ready")
-			waitForNodeReady(ctx)
+			WaitForNodeReady(ctx)
 			customClasses := []*schedulingv1.PriorityClass{customClassA, customClassB, customClassC}
 			for _, customClass := range customClasses {
 				_, err := f.ClientSet.SchedulingV1().PriorityClasses().Create(ctx, customClass, metav1.CreateOptions{})
@@ -447,7 +448,7 @@ var _ = SIGDescribe("GracefulNodeShutdown", framework.WithSerial(), nodefeature.
 		})
 
 		ginkgo.It("should be able to gracefully shutdown pods with various grace periods", func(ctx context.Context) {
-			nodeName := getNodeName(ctx, f)
+			nodeName := GetNodeName(ctx, f)
 			nodeSelector := fields.Set{
 				"spec.nodeName": nodeName,
 			}.AsSelector().String()
@@ -596,7 +597,7 @@ func getGracePeriodOverrideTestPod(name string, node string, gracePeriod int64, 
 			Containers: []v1.Container{
 				{
 					Name:    name,
-					Image:   busyboxImage,
+					Image:   BusyboxImage,
 					Command: []string{"sh", "-c"},
 					Args: []string{`
 					sleep 9999999 &
@@ -647,7 +648,7 @@ func getNodeReadyStatus(ctx context.Context, f *framework.Framework) bool {
 	framework.ExpectNoError(err)
 	// Assuming that there is only one node, because this is a node e2e test.
 	gomega.Expect(nodeList.Items).To(gomega.HaveLen(1), "the number of nodes is not as expected")
-	return isNodeReady(&nodeList.Items[0])
+	return IsNodeReady(&nodeList.Items[0])
 }
 
 const (

@@ -41,6 +41,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	testutils "k8s.io/kubernetes/test/utils"
 )
 
@@ -66,7 +67,7 @@ var _ = SIGDescribe("NodeProblemDetector", nodefeature.NodeProblemDetector, fram
 		configName = "node-problem-detector-config-" + uid
 		// There is no namespace for Node, event recorder will set default namespace for node events.
 		eventNamespace = metav1.NamespaceDefault
-		image = getNodeProblemDetectorImage()
+		image = GetNodeProblemDetectorImage()
 		ginkgo.By(fmt.Sprintf("Using node-problem-detector image: %s", image))
 	})
 

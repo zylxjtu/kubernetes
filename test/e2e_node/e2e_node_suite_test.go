@@ -27,12 +27,8 @@ import (
 	"os"
 	"os/exec"
 	"testing"
-	"time"
 
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
-	clientset "k8s.io/client-go/kubernetes"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/kubernetes/pkg/util/rlimit"
 	commontest "k8s.io/kubernetes/test/e2e/common"
@@ -45,6 +41,7 @@ import (
 	"k8s.io/kubernetes/test/e2e_node/criproxy"
 	"k8s.io/kubernetes/test/e2e_node/services"
 	e2enodetestingmanifests "k8s.io/kubernetes/test/e2e_node/testing-manifests"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 
 	// define and freeze constants
 	_ "k8s.io/kubernetes/test/e2e/feature"
@@ -146,7 +143,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	setExtraEnvs()
+	SetExtraEnvs()
 	os.Exit(m.Run())
 }
 
@@ -168,7 +165,7 @@ func TestE2eNode(t *testing.T) {
 	}
 	if *systemValidateMode {
 		// If system-validate-mode is specified, only run system validation in current process.
-		systemValidation(systemSpecFile)
+		SystemValidation(systemSpecFile)
 		return
 	}
 
@@ -208,7 +205,7 @@ var _ = ginkgo.SynchronizedBeforeSuite(func(ctx context.Context) []byte {
 	// This helps with debugging test flakes since it is hard to tell when a test failure is due to image pulling.
 	if framework.TestContext.PrepullImages {
 		klog.Infof("Pre-pulling images so that they are cached for the tests.")
-		updateImageAllowList(ctx)
+		UpdateImageAllowList(ctx)
 		err := PrePullAllImages(ctx)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	}
@@ -220,7 +217,7 @@ var _ = ginkgo.SynchronizedBeforeSuite(func(ctx context.Context) []byte {
 
 	if framework.TestContext.CriProxyEnabled {
 		framework.Logf("Start cri proxy")
-		rs, is, err := getCRIClient()
+		rs, is, err := GetCRIClient()
 		framework.ExpectNoError(err)
 
 		e2eCriProxy = criproxy.NewRemoteRuntimeProxy(rs, is)
@@ -234,10 +231,10 @@ var _ = ginkgo.SynchronizedBeforeSuite(func(ctx context.Context) []byte {
 		framework.TestContext.ImageServiceEndpoint = endpoint
 	}
 
-	if *startServices {
+	if *StartServices {
 		// If the services are expected to stop after test, they should monitor the test process.
 		// If the services are expected to keep running after test, they should not monitor the test process.
-		e2es = services.NewE2EServices(*stopServices)
+		e2es = services.NewE2EServices(*StopServices)
 		gomega.Expect(e2es.Start(featureGates)).To(gomega.Succeed(), "should be able to start node services.")
 	} else {
 		klog.Infof("Running tests without starting services.")
@@ -245,7 +242,7 @@ var _ = ginkgo.SynchronizedBeforeSuite(func(ctx context.Context) []byte {
 
 	if !framework.TestContext.StandaloneMode {
 		klog.Infof("Wait for the node to be ready")
-		waitForNodeReady(ctx)
+		WaitForNodeReady(ctx)
 	}
 
 	// Reference common test to make the import valid.
@@ -258,20 +255,20 @@ var _ = ginkgo.SynchronizedBeforeSuite(func(ctx context.Context) []byte {
 }, func(ctx context.Context, token []byte) {
 	framework.TestContext.BearerToken = string(token)
 	// update test context with node configuration.
-	gomega.Expect(updateTestContext(ctx)).To(gomega.Succeed(), "update test context with node config.")
+	gomega.Expect(UpdateTestContext(ctx)).To(gomega.Succeed(), "update test context with node config.")
 
 	// Store current Kubelet configuration in the package variable
 	// This assumes all tests which dynamically change kubelet configuration
 	// must: 1) run in serial; 2) restore kubelet configuration after test.
 	var err error
-	kubeletCfg, err = getCurrentKubeletConfig(ctx)
+	KubeletCfg, err = GetCurrentKubeletConfig(ctx)
 	framework.ExpectNoError(err)
 })
 
 // Tear down the kubelet on the node
 var _ = ginkgo.SynchronizedAfterSuite(func() {}, func() {
 	if e2es != nil {
-		if *startServices && *stopServices {
+		if *StartServices && *StopServices {
 			klog.Infof("Stopping node services...")
 			e2es.Stop()
 		}
@@ -312,93 +309,5 @@ func maskLocksmithdOnCoreos() {
 		output, err := exec.Command("systemctl", "mask", "--now", "locksmithd").CombinedOutput()
 		framework.ExpectNoError(err, fmt.Sprintf("should be able to mask locksmithd - output: %q", string(output)))
 		klog.Infof("Locksmithd is masked successfully")
-	}
-}
-
-func waitForNodeReady(ctx context.Context) {
-	const (
-		// nodeReadyTimeout is the time to wait for node to become ready.
-		nodeReadyTimeout = 2 * time.Minute
-		// nodeReadyPollInterval is the interval to check node ready.
-		nodeReadyPollInterval = 1 * time.Second
-	)
-	client, err := getAPIServerClient()
-	framework.ExpectNoError(err, "should be able to get apiserver client.")
-	gomega.Eventually(ctx, func() error {
-		node, err := getNode(client)
-		if err != nil {
-			return fmt.Errorf("failed to get node: %w", err)
-		}
-		if !isNodeReady(node) {
-			return fmt.Errorf("node is not ready: %+v", node)
-		}
-		return nil
-	}, nodeReadyTimeout, nodeReadyPollInterval).Should(gomega.Succeed())
-}
-
-// updateTestContext updates the test context with the node name.
-func updateTestContext(ctx context.Context) error {
-	setExtraEnvs()
-	updateImageAllowList(ctx)
-
-	client, err := getAPIServerClient()
-	if err != nil {
-		return fmt.Errorf("failed to get apiserver client: %w", err)
-	}
-
-	if !framework.TestContext.StandaloneMode {
-		// Update test context with current node object.
-		node, err := getNode(client)
-		if err != nil {
-			return fmt.Errorf("failed to get node: %w", err)
-		}
-		framework.TestContext.NodeName = node.Name // Set node name from API server, it is already set to the computer name by default.
-	}
-
-	framework.Logf("Node name: %s", framework.TestContext.NodeName)
-
-	return nil
-}
-
-// getNode gets node object from the apiserver.
-func getNode(c *clientset.Clientset) (*v1.Node, error) {
-	nodes, err := c.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-	framework.ExpectNoError(err, "should be able to list nodes.")
-	if nodes == nil {
-		return nil, fmt.Errorf("the node list is nil")
-	}
-	gomega.Expect(len(nodes.Items)).To(gomega.BeNumerically("<=", 1), "the number of nodes is more than 1.")
-	if len(nodes.Items) == 0 {
-		return nil, fmt.Errorf("empty node list: %+v", nodes)
-	}
-	return &nodes.Items[0], nil
-}
-
-// getAPIServerClient gets a apiserver client.
-func getAPIServerClient() (*clientset.Clientset, error) {
-	config, err := framework.LoadConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load config: %w", err)
-	}
-	client, err := clientset.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create client: %w", err)
-	}
-	return client, nil
-}
-
-// isNodeReady returns true if a node is ready; false otherwise.
-func isNodeReady(node *v1.Node) bool {
-	for _, c := range node.Status.Conditions {
-		if c.Type == v1.NodeReady {
-			return c.Status == v1.ConditionTrue
-		}
-	}
-	return false
-}
-
-func setExtraEnvs() {
-	for name, value := range framework.TestContext.ExtraEnvs {
-		os.Setenv(name, value)
 	}
 }

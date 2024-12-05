@@ -35,6 +35,7 @@ import (
 	nodeutil "k8s.io/component-helpers/node/util"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2enode "k8s.io/kubernetes/test/e2e/framework/node"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 )
 
@@ -43,13 +44,13 @@ var _ = SIGDescribe("OSArchLabelReconciliation", framework.WithSerial(), framewo
 	f.NamespacePodSecurityLevel = admissionapi.LevelPrivileged
 	ginkgo.Context("Kubelet", func() {
 		ginkgo.It("should reconcile the OS and Arch labels when restarted", func(ctx context.Context) {
-			node := getLocalNode(ctx, f)
+			node := GetLocalNode(ctx, f)
 			e2enode.ExpectNodeHasLabel(ctx, f.ClientSet, node.Name, v1.LabelOSStable, runtime.GOOS)
 			e2enode.ExpectNodeHasLabel(ctx, f.ClientSet, node.Name, v1.LabelArchStable, runtime.GOARCH)
 
 			ginkgo.By("killing and restarting kubelet")
 			// Let's kill the kubelet
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := MustStopKubelet(ctx, f)
 			// Update labels
 			newNode := node.DeepCopy()
 			newNode.Labels[v1.LabelOSStable] = "dummyOS"
@@ -65,7 +66,7 @@ var _ = SIGDescribe("OSArchLabelReconciliation", framework.WithSerial(), framewo
 		})
 		ginkgo.It("should reconcile the OS and Arch labels when running", func(ctx context.Context) {
 
-			node := getLocalNode(ctx, f)
+			node := GetLocalNode(ctx, f)
 			e2enode.ExpectNodeHasLabel(ctx, f.ClientSet, node.Name, v1.LabelOSStable, runtime.GOOS)
 			e2enode.ExpectNodeHasLabel(ctx, f.ClientSet, node.Name, v1.LabelArchStable, runtime.GOARCH)
 
