@@ -28,6 +28,7 @@ import (
 	kubeletconfig "k8s.io/kubernetes/pkg/kubelet/apis/config"
 	"k8s.io/kubernetes/test/e2e/framework"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 )
 
 var _ = SIGDescribe("Kubelet Config", framework.WithSlow(), framework.WithSerial(), framework.WithDisruptive(), nodefeature.KubeletConfigDropInDir, func() {
@@ -54,7 +55,7 @@ var _ = SIGDescribe("Kubelet Config", framework.WithSlow(), framework.WithSerial
 			framework.ExpectNoError(err)
 
 			ginkgo.By("Stopping the kubelet")
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := utils.MustStopKubelet(ctx, f)
 
 			configDir := framework.TestContext.KubeletConfigDropinDir
 

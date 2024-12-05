@@ -18,6 +18,7 @@ package e2enode
 
 import (
 	"context"
+
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 
@@ -26,12 +27,13 @@ import (
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 )
 
 var _ = SIGDescribe(framework.WithSerial(), "Pods status phase", func() {
 	f := framework.NewDefaultFramework("pods-status-phase-test-serial")
-	addAfterEachForCleaningUpPods(f)
+	utils.AddAfterEachForCleaningUpPods(f)
 	f.NamespacePodSecurityLevel = admissionapi.LevelPrivileged
 
 	ginkgo.It("should be pending during the execution of the init container after the node reboot", func(ctx context.Context) {
@@ -52,7 +54,7 @@ var _ = SIGDescribe(framework.WithSerial(), "Pods status phase", func() {
 				InitContainers: []v1.Container{
 					{
 						Name:  init,
-						Image: busyboxImage,
+						Image: utils.BusyboxImage,
 						Command: ExecCommand(init, execCommand{
 							Delay:    30,
 							ExitCode: 0,
@@ -62,7 +64,7 @@ var _ = SIGDescribe(framework.WithSerial(), "Pods status phase", func() {
 				Containers: []v1.Container{
 					{
 						Name:  regular,
-						Image: busyboxImage,
+						Image: utils.BusyboxImage,
 						Command: ExecCommand(regular, execCommand{
 							Delay:    300,
 							ExitCode: 0,
@@ -94,7 +96,7 @@ var _ = SIGDescribe(framework.WithSerial(), "Pods status phase", func() {
 		// to avoid any unintended effects from the previous init container state.
 		// Simulate node reboot by restarting the kubelet and the pod sandbox.
 		ginkgo.By("Stopping the kubelet")
-		startKubelet := mustStopKubelet(ctx, f)
+		startKubelet := utils.MustStopKubelet(ctx, f)
 		gomega.Eventually(ctx, func() bool {
 			return kubeletHealthCheck(kubeletHealthCheckURL)
 		}, f.Timeouts.PodStart, f.Timeouts.Poll).Should(gomega.BeFalseBecause("kubelet should be stopped"))

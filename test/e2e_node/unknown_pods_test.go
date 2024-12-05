@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 	admissionapi "k8s.io/pod-security-admission/api"
 )
@@ -69,7 +70,7 @@ var _ = SIGDescribe("Unknown Pods", framework.WithSerial(), framework.WithDisrup
 
 		ginkgo.It("the static pod should be terminated and cleaned up due to becoming a unknown pod due to being force deleted while kubelet is not running", func(ctx context.Context) {
 			framework.Logf("Stopping the kubelet")
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := utils.MustStopKubelet(ctx, f)
 
 			pod, err := f.ClientSet.CoreV1().Pods(ns).Get(ctx, mirrorPodName, metav1.GetOptions{})
 			framework.ExpectNoError(err)
@@ -130,7 +131,7 @@ var _ = SIGDescribe("Unknown Pods", framework.WithSerial(), framework.WithDisrup
 
 		ginkgo.It("the api pod should be terminated and cleaned up due to becoming a unknown pod due to being force deleted while kubelet is not running", func(ctx context.Context) {
 			framework.Logf("Stopping the kubelet")
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := utils.MustStopKubelet(ctx, f)
 
 			pod, err := f.ClientSet.CoreV1().Pods(ns).Get(ctx, podName, metav1.GetOptions{})
 			framework.ExpectNoError(err)

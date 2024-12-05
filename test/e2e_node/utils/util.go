@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2enode
+package utils
 
 import (
 	"context"
@@ -69,10 +69,10 @@ import (
 	"github.com/onsi/gomega"
 )
 
-var startServices = flag.Bool("start-services", true, "If true, start local node services")
-var stopServices = flag.Bool("stop-services", true, "If true, stop local node services after running tests")
-var busyboxImage = imageutils.GetE2EImage(imageutils.BusyBox)
-var agnhostImage = imageutils.GetE2EImage(imageutils.Agnhost)
+var StartServices = flag.Bool("start-services", true, "If true, start local node services")
+var StopServices = flag.Bool("stop-services", true, "If true, stop local node services after running tests")
+var BusyboxImage = imageutils.GetE2EImage(imageutils.BusyBox)
+var AgnhostImage = imageutils.GetE2EImage(imageutils.Agnhost)
 
 const (
 	// Kubelet internal cgroup name for node allocatable cgroup.
@@ -87,10 +87,10 @@ const (
 )
 
 var (
-	kubeletHealthCheckURL    = fmt.Sprintf("http://127.0.0.1:%d/healthz", ports.KubeletHealthzPort)
-	containerRuntimeUnitName = ""
+	KubeletHealthCheckURL    = fmt.Sprintf("http://127.0.0.1:%d/healthz", ports.KubeletHealthzPort)
+	ContainerRuntimeUnitName = ""
 	// KubeletConfig is the kubelet configuration the test is running against.
-	kubeletCfg *kubeletconfig.KubeletConfiguration
+	KubeletCfg *kubeletconfig.KubeletConfiguration
 )
 
 func getNodeSummary(ctx context.Context) (*stats.Summary, error) {
@@ -169,7 +169,7 @@ func getCurrentKubeletConfig(ctx context.Context) (*kubeletconfig.KubeletConfigu
 	return e2enodekubelet.GetCurrentKubeletConfig(ctx, framework.TestContext.NodeName, "", false, framework.TestContext.StandaloneMode)
 }
 
-func addAfterEachForCleaningUpPods(f *framework.Framework) {
+func AddAfterEachForCleaningUpPods(f *framework.Framework) {
 	ginkgo.AfterEach(func(ctx context.Context) {
 		ginkgo.By("Deleting any Pods created by the test in namespace: " + f.Namespace.Name)
 		l, err := e2epod.NewPodClient(f).List(ctx, metav1.ListOptions{})
@@ -214,7 +214,7 @@ func tempSetCurrentKubeletConfig(f *framework.Framework, updateFunction func(ctx
 func updateKubeletConfig(ctx context.Context, f *framework.Framework, kubeletConfig *kubeletconfig.KubeletConfiguration, deleteStateFiles bool) {
 	// Update the Kubelet configuration.
 	ginkgo.By("Stopping the kubelet")
-	restartKubelet := mustStopKubelet(ctx, f)
+	restartKubelet := MustStopKubelet(ctx, f)
 
 	// Delete CPU and memory manager state files to be sure it will not prevent the kubelet restart
 	if deleteStateFiles {
@@ -231,7 +231,7 @@ func updateKubeletConfig(ctx context.Context, f *framework.Framework, kubeletCon
 func waitForKubeletToStart(ctx context.Context, f *framework.Framework) {
 	// wait until the kubelet health check will succeed
 	gomega.Eventually(ctx, func() bool {
-		return kubeletHealthCheck(kubeletHealthCheckURL)
+		return KubeletHealthCheck(KubeletHealthCheckURL)
 	}, 2*time.Minute, 5*time.Second).Should(gomega.BeTrueBecause("expected kubelet to be in healthy state"))
 
 	// Wait for the Kubelet to be ready.
@@ -330,7 +330,7 @@ func getCRIClient() (internalapi.RuntimeService, internalapi.ImageManagerService
 	return r, i, nil
 }
 
-func kubeletHealthCheck(url string) bool {
+func KubeletHealthCheck(url string) bool {
 	insecureTransport := http.DefaultTransport.(*http.Transport).Clone()
 	insecureTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	insecureHTTPClient := &http.Client{
@@ -352,7 +352,7 @@ func kubeletHealthCheck(url string) bool {
 }
 
 func toCgroupFsName(cgroupName cm.CgroupName) string {
-	if kubeletCfg.CgroupDriver == "systemd" {
+	if KubeletCfg.CgroupDriver == "systemd" {
 		return cgroupName.ToSystemd()
 	}
 	return cgroupName.ToCgroupfs()

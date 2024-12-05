@@ -41,6 +41,7 @@ import (
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 	testutils "k8s.io/kubernetes/test/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 	admissionapi "k8s.io/pod-security-admission/api"
@@ -1000,7 +1001,7 @@ func innocentPod() *v1.Pod {
 			TerminationGracePeriodSeconds: &gracePeriod,
 			Containers: []v1.Container{
 				{
-					Image: busyboxImage,
+					Image: utils.BusyboxImage,
 					Name:  "innocent-container",
 					Command: []string{
 						"sh",
@@ -1073,7 +1074,7 @@ func podWithCommand(volumeSource *v1.VolumeSource, resources v1.ResourceRequirem
 			TerminationGracePeriodSeconds: &gracePeriod,
 			Containers: []v1.Container{
 				{
-					Image: busyboxImage,
+					Image: utils.BusyboxImage,
 					Name:  fmt.Sprintf("%s-container", name),
 					Command: []string{
 						"sh",

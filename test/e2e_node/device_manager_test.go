@@ -38,6 +38,7 @@ import (
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2etestfiles "k8s.io/kubernetes/test/e2e/framework/testfiles"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 	testutils "k8s.io/kubernetes/test/utils"
 
 	"github.com/onsi/ginkgo/v2"
@@ -194,7 +195,7 @@ var _ = SIGDescribe("Device Manager", framework.WithSerial(), nodefeature.Device
 			framework.Logf("pod %s/%s running", testPod.Namespace, testPod.Name)
 
 			ginkgo.By("stopping the kubelet")
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := utils.MustStopKubelet(ctx, f)
 
 			ginkgo.By("stopping all the local containers - using CRI")
 			rs, _, err := getCRIClient()
@@ -301,7 +302,7 @@ func makeBusyboxDeviceRequiringPod(resourceName, cmd string) *v1.Pod {
 		Spec: v1.PodSpec{
 			RestartPolicy: v1.RestartPolicyNever,
 			Containers: []v1.Container{{
-				Image: busyboxImage,
+				Image: utils.BusyboxImage,
 				Name:  podName,
 				// Runs the specified command in the test pod.
 				Command: []string{"sh", "-c", cmd},

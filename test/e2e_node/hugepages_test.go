@@ -38,6 +38,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 )
 
@@ -187,7 +188,7 @@ func getHugepagesTestPod(f *framework.Framework, limits v1.ResourceList, mounts 
 			Containers: []v1.Container{
 				{
 					Name:  "container" + string(uuid.NewUUID()),
-					Image: busyboxImage,
+					Image: utils.BusyboxImage,
 					Resources: v1.ResourceRequirements{
 						Limits: limits,
 					},
@@ -235,7 +236,7 @@ var _ = SIGDescribe("HugePages", framework.WithSerial(), feature.HugePages, "[No
 
 	ginkgo.It("should add resources for new huge page sizes on kubelet restart", func(ctx context.Context) {
 		ginkgo.By("Stopping kubelet")
-		restartKubelet := mustStopKubelet(ctx, f)
+		restartKubelet := utils.MustStopKubelet(ctx, f)
 		ginkgo.By(`Patching away support for hugepage resource "hugepages-2Mi"`)
 		patch := []byte(`[{"op": "remove", "path": "/status/capacity/hugepages-2Mi"}, {"op": "remove", "path": "/status/allocatable/hugepages-2Mi"}]`)
 		result := f.ClientSet.CoreV1().RESTClient().Patch(types.JSONPatchType).Resource("nodes").Name(framework.TestContext.NodeName).SubResource("status").Body(patch).Do(ctx)

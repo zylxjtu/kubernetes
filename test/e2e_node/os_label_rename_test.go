@@ -35,6 +35,7 @@ import (
 	nodeutil "k8s.io/component-helpers/node/util"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2enode "k8s.io/kubernetes/test/e2e/framework/node"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 )
 
@@ -49,7 +50,7 @@ var _ = SIGDescribe("OSArchLabelReconciliation", framework.WithSerial(), framewo
 
 			ginkgo.By("killing and restarting kubelet")
 			// Let's kill the kubelet
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := utils.MustStopKubelet(ctx, f)
 			// Update labels
 			newNode := node.DeepCopy()
 			newNode.Labels[v1.LabelOSStable] = "dummyOS"

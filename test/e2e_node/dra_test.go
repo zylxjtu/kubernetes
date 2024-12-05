@@ -52,6 +52,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/feature"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 
 	"k8s.io/dynamic-resource-allocation/kubeletplugin"
 	testdriver "k8s.io/kubernetes/test/e2e/dra/test-driver/app"
@@ -129,7 +130,7 @@ var _ = framework.SIGDescribe("node")("DRA", feature.DynamicResourceAllocation, 
 
 			// Stop Kubelet
 			ginkgo.By("stop kubelet")
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := utils.MustStopKubelet(ctx, f)
 			pod := createTestObjects(ctx, f.ClientSet, getNodeName(ctx, f), f.Namespace.Name, "draclass", "external-claim", "drapod", true, []string{driverName})
 			// Pod must be in pending state
 			err := e2epod.WaitForPodCondition(ctx, f.ClientSet, f.Namespace.Name, pod.Name, "Pending", framework.PodStartShortTimeout, func(pod *v1.Pod) (bool, error) {
@@ -226,7 +227,7 @@ var _ = framework.SIGDescribe("node")("DRA", feature.DynamicResourceAllocation, 
 			gomega.Eventually(kubeletPlugin.GetGRPCCalls).WithTimeout(retryTestTimeout).Should(testdriver.NodePrepareResourcesFailed)
 
 			ginkgo.By("stop Kubelet")
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := utils.MustStopKubelet(ctx, f)
 
 			unsetNodePrepareResourcesFailureMode()
 
@@ -253,7 +254,7 @@ var _ = framework.SIGDescribe("node")("DRA", feature.DynamicResourceAllocation, 
 			gomega.Eventually(kubeletPlugin.GetGRPCCalls).WithTimeout(retryTestTimeout).Should(testdriver.NodeUnprepareResourcesFailed)
 
 			ginkgo.By("stop Kubelet")
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := utils.MustStopKubelet(ctx, f)
 
 			unsetNodeUnprepareResourcesFailureMode()
 
@@ -336,7 +337,7 @@ var _ = framework.SIGDescribe("node")("DRA", feature.DynamicResourceAllocation, 
 			framework.ExpectNoError(err)
 
 			ginkgo.By("stop Kubelet")
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := utils.MustStopKubelet(ctx, f)
 
 			ginkgo.By("delete pod")
 			e2epod.DeletePodOrFail(ctx, f.ClientSet, f.Namespace.Name, pod.Name)
@@ -499,7 +500,7 @@ var _ = framework.SIGDescribe("node")("DRA", feature.DynamicResourceAllocation, 
 
 		f.It("must be removed on kubelet startup", f.WithDisruptive(), func(ctx context.Context) {
 			ginkgo.By("stop kubelet")
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := utils.MustStopKubelet(ctx, f)
 			ginkgo.DeferCleanup(func() {
 				if restartKubelet != nil {
 					restartKubelet(ctx)

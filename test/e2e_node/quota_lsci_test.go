@@ -107,7 +107,7 @@ var _ = SIGDescribe("LocalStorageCapacityIsolationFSQuotaMonitoring", framework.
 	runOneQuotaTest(f, true, true)
 	runOneQuotaTest(f, true, false)
 	runOneQuotaTest(f, false, true)
-	addAfterEachForCleaningUpPods(f)
+	utils.AddAfterEachForCleaningUpPods(f)
 })
 
 const (

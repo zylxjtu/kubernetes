@@ -58,7 +58,7 @@ var (
 
 var _ = SIGDescribe("Swap", "[LinuxOnly]", nodefeature.Swap, framework.WithSerial(), func() {
 	f := framework.NewDefaultFramework("swap-qos")
-	addAfterEachForCleaningUpPods(f)
+	utils.AddAfterEachForCleaningUpPods(f)
 	f.NamespacePodSecurityLevel = admissionapi.LevelBaseline
 
 	ginkgo.BeforeEach(func() {

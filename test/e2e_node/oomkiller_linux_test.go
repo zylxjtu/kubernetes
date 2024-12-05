@@ -28,6 +28,7 @@ import (
 	kubeletconfig "k8s.io/kubernetes/pkg/kubelet/apis/config"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 
 	"github.com/onsi/ginkgo/v2"
@@ -231,7 +232,7 @@ func getInitContainerOOMTargetPod(podName string, ctnName string, createContaine
 			Containers: []v1.Container{
 				{
 					Name:  "busybox",
-					Image: busyboxImage,
+					Image: utils.BusyboxImage,
 				},
 			},
 		},
@@ -243,7 +244,7 @@ func getInitContainerOOMTargetPod(podName string, ctnName string, createContaine
 func getOOMTargetContainer(name string) v1.Container {
 	return v1.Container{
 		Name:  name,
-		Image: busyboxImage,
+		Image: utils.BusyboxImage,
 		Command: []string{
 			"sh",
 			"-c",
@@ -276,7 +277,7 @@ func getOOMTargetContainer(name string) v1.Container {
 func getOOMTargetContainerMultiProcess(name string) v1.Container {
 	return v1.Container{
 		Name:  name,
-		Image: busyboxImage,
+		Image: utils.BusyboxImage,
 		Command: []string{
 			"sh",
 			"-c",
@@ -309,7 +310,7 @@ func getOOMTargetContainerMultiProcess(name string) v1.Container {
 func getOOMTargetContainerWithoutLimit(name string) v1.Container {
 	return v1.Container{
 		Name:  name,
-		Image: busyboxImage,
+		Image: utils.BusyboxImage,
 		Command: []string{
 			"sh",
 			"-c",

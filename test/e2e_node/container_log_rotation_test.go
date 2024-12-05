@@ -27,6 +27,7 @@ import (
 	kubelogs "k8s.io/kubernetes/pkg/kubelet/logs"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 
 	"github.com/onsi/ginkgo/v2"
@@ -64,7 +65,7 @@ var _ = SIGDescribe("ContainerLogRotation", framework.WithSlow(), framework.With
 					Containers: []v1.Container{
 						{
 							Name:  "log-container",
-							Image: busyboxImage,
+							Image: utils.BusyboxImage,
 							Command: []string{
 								"sh",
 								"-c",
@@ -133,7 +134,7 @@ var _ = SIGDescribe("ContainerLogRotationWithMultipleWorkers", framework.WithSlo
 						Containers: []v1.Container{
 							{
 								Name:  "log-container",
-								Image: busyboxImage,
+								Image: utils.BusyboxImage,
 								Command: []string{
 									"sh",
 									"-c",

@@ -39,6 +39,7 @@ import (
 	e2emetrics "k8s.io/kubernetes/test/e2e/framework/metrics"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 	"k8s.io/utils/cpuset"
 )
@@ -292,7 +293,7 @@ func makeGuaranteedCPUExclusiveSleeperPod(name string, cpus int) *v1.Pod {
 			Containers: []v1.Container{
 				{
 					Name:  name + "-cnt",
-					Image: busyboxImage,
+					Image: utils.BusyboxImage,
 					Resources: v1.ResourceRequirements{
 						Requests: v1.ResourceList{
 							v1.ResourceCPU:    resource.MustParse(fmt.Sprintf("%d", cpus)),

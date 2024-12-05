@@ -43,6 +43,7 @@ import (
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 	e2etestfiles "k8s.io/kubernetes/test/e2e/framework/testfiles"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 	testutils "k8s.io/kubernetes/test/utils"
 
 	"github.com/onsi/ginkgo/v2"
@@ -147,7 +148,7 @@ func makeContainers(ctnCmd string, ctnAttributes []tmCtnAttribute) (ctns []v1.Co
 	for _, ctnAttr := range ctnAttributes {
 		ctn := v1.Container{
 			Name:  ctnAttr.ctnName,
-			Image: busyboxImage,
+			Image: utils.BusyboxImage,
 			Resources: v1.ResourceRequirements{
 				Requests: v1.ResourceList{
 					v1.ResourceName(v1.ResourceCPU):    resource.MustParse(ctnAttr.cpuRequest),

@@ -39,6 +39,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/framework"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
 	e2enodekubelet "k8s.io/kubernetes/test/e2e_node/kubeletconfig"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -237,7 +238,7 @@ func runTest(ctx context.Context, f *framework.Framework) error {
 		if oldCfg != nil {
 			// Update the Kubelet configuration.
 			ginkgo.By("Stopping the kubelet")
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := utils.MustStopKubelet(ctx, f)
 
 			// wait until the kubelet health check will fail
 			gomega.Eventually(ctx, func() bool {
@@ -265,7 +266,7 @@ func runTest(ctx context.Context, f *framework.Framework) error {
 	// Set the new kubelet configuration.
 	// Update the Kubelet configuration.
 	ginkgo.By("Stopping the kubelet")
-	restartKubelet := mustStopKubelet(ctx, f)
+	restartKubelet := utils.MustStopKubelet(ctx, f)
 
 	expectedNAPodCgroup := cm.NewCgroupName(cm.RootCgroupName, nodeAllocatableCgroup)
 

@@ -30,6 +30,7 @@ import (
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 	"k8s.io/utils/ptr"
 )
@@ -264,7 +265,7 @@ func podForRROSupported(name, ns string) *v1.Pod {
 					},
 				},
 				{
-					Image: busyboxImage,
+					Image: utils.BusyboxImage,
 					Name:  "test",
 					Command: []string{"sh", "-euxc", `
 for f in rro rro-if-possible; do touch /mnt-$f/tmpfs/foo 2>&1 | grep "Read-only"; done
@@ -361,7 +362,7 @@ func podForRROUnsupported(name, ns string) *v1.Pod {
 					},
 				},
 				{
-					Image: busyboxImage,
+					Image: utils.BusyboxImage,
 					Name:  "test",
 					Command: []string{"sh", "-euxc", `
 for f in rro-if-possible rro-disabled ro rw; do touch /mnt-$f/tmpfs/foo; done

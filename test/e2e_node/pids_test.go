@@ -128,6 +128,6 @@ var _ = SIGDescribe("PodPidsLimit", framework.WithSerial(), func() {
 			initialConfig.PodPidsLimit = int64(1024)
 		})
 		runPodPidsLimitTests(f)
-		addAfterEachForCleaningUpPods(f)
+		utils.AddAfterEachForCleaningUpPods(f)
 	})
 })

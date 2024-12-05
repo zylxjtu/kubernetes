@@ -42,6 +42,7 @@ import (
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 )
 
 // Helper for makeCPUManagerPod().
@@ -59,7 +60,7 @@ func makeCPUManagerPod(podName string, ctnAttributes []ctnAttribute) *v1.Pod {
 		cpusetCmd := fmt.Sprintf("grep Cpus_allowed_list /proc/self/status | cut -f2 && sleep 1d")
 		ctn := v1.Container{
 			Name:  ctnAttr.ctnName,
-			Image: busyboxImage,
+			Image: utils.BusyboxImage,
 			Resources: v1.ResourceRequirements{
 				Requests: v1.ResourceList{
 					v1.ResourceCPU:    resource.MustParse(ctnAttr.cpuRequest),
@@ -95,7 +96,7 @@ func makeCPUManagerInitContainersPod(podName string, ctnAttributes []ctnAttribut
 	for _, ctnAttr := range ctnAttributes {
 		ctn := v1.Container{
 			Name:  ctnAttr.ctnName,
-			Image: busyboxImage,
+			Image: utils.BusyboxImage,
 			Resources: v1.ResourceRequirements{
 				Requests: v1.ResourceList{
 					v1.ResourceCPU:    resource.MustParse(ctnAttr.cpuRequest),
@@ -125,7 +126,7 @@ func makeCPUManagerInitContainersPod(podName string, ctnAttributes []ctnAttribut
 			Containers: []v1.Container{
 				{
 					Name:  "regular",
-					Image: busyboxImage,
+					Image: utils.BusyboxImage,
 					Resources: v1.ResourceRequirements{
 						Requests: v1.ResourceList{
 							v1.ResourceCPU:    resource.MustParse("1000m"),

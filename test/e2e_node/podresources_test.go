@@ -35,6 +35,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/apis/podresources"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpumanager"
 	"k8s.io/kubernetes/pkg/kubelet/util"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 	testutils "k8s.io/kubernetes/test/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 	"k8s.io/utils/cpuset"
@@ -120,7 +121,7 @@ func (desc initContainerDesc) RequiresDevices() bool {
 func makePodResourcesTestPod(desc podDesc) *v1.Pod {
 	cnt := v1.Container{
 		Name:  desc.cntName,
-		Image: busyboxImage,
+		Image: utils.BusyboxImage,
 		Resources: v1.ResourceRequirements{
 			Requests: v1.ResourceList{},
 			Limits:   v1.ResourceList{},
@@ -144,7 +145,7 @@ func makePodResourcesTestPod(desc podDesc) *v1.Pod {
 	for _, cntDesc := range desc.initContainers {
 		initCnt := v1.Container{
 			Name:  cntDesc.cntName,
-			Image: busyboxImage,
+			Image: utils.BusyboxImage,
 			Resources: v1.ResourceRequirements{
 				Requests: v1.ResourceList{},
 				Limits:   v1.ResourceList{},

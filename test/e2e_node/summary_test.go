@@ -31,6 +31,7 @@ import (
 	e2ekubectl "k8s.io/kubernetes/test/e2e/framework/kubectl"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2evolume "k8s.io/kubernetes/test/e2e/framework/volume"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 
 	systemdutil "github.com/coreos/go-systemd/v22/util"
@@ -362,7 +363,7 @@ func getSummaryTestPods(f *framework.Framework, numRestarts int32, names ...stri
 				Containers: []v1.Container{
 					{
 						Name:  "busybox-container",
-						Image: busyboxImage,
+						Image: utils.BusyboxImage,
 						SecurityContext: &v1.SecurityContext{
 							Capabilities: &v1.Capabilities{
 								Add: []v1.Capability{"NET_RAW"},

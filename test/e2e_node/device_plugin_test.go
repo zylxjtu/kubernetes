@@ -55,6 +55,7 @@ import (
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 	e2etestfiles "k8s.io/kubernetes/test/e2e/framework/testfiles"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 )
 
 var (
@@ -652,7 +653,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			framework.ExpectNoError(err)
 
 			ginkgo.By("stopping the kubelet")
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := utils.MustStopKubelet(ctx, f)
 
 			// wait until the kubelet health check will fail
 			gomega.Eventually(ctx, func() bool {
@@ -947,7 +948,7 @@ func testDevicePluginNodeReboot(f *framework.Framework, pluginSockDir string) {
 			framework.ExpectNoError(err)
 
 			ginkgo.By("stopping the kubelet")
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := utils.MustStopKubelet(ctx, f)
 
 			ginkgo.By("stopping all the local containers - using CRI")
 			rs, _, err := getCRIClient()
@@ -1003,7 +1004,7 @@ func makeBusyboxPod(SampleDeviceResourceName, cmd string) *v1.Pod {
 		Spec: v1.PodSpec{
 			RestartPolicy: v1.RestartPolicyAlways,
 			Containers: []v1.Container{{
-				Image: busyboxImage,
+				Image: utils.BusyboxImage,
 				Name:  podName,
 				// Runs the specified command in the test pod.
 				Command: []string{"sh", "-c", cmd},

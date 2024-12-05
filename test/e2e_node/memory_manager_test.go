@@ -42,6 +42,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/feature"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 	"k8s.io/utils/cpuset"
 	"k8s.io/utils/pointer"
@@ -73,7 +74,7 @@ func makeMemoryManagerContainers(ctnCmd string, ctnAttributes []memoryManagerCtn
 	for _, ctnAttr := range ctnAttributes {
 		ctn := v1.Container{
 			Name:  ctnAttr.ctnName,
-			Image: busyboxImage,
+			Image: utils.BusyboxImage,
 			Resources: v1.ResourceRequirements{
 				Limits: v1.ResourceList{
 					v1.ResourceCPU:    resource.MustParse(ctnAttr.cpus),
