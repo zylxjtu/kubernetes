@@ -107,7 +107,7 @@ Args (comma-delimited): %v`, *logFilePath, *alsoToStdOut, *redirectStderr,
 func setupSigHandler(process *os.Process) {
 	// terminationSignals are signals that cause the program to exit in the
 	// supported platforms (linux, darwin, windows).
-	terminationSignals := []os.Signal{syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT}
+	terminationSignals := []os.Signal{syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGKILL}
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, terminationSignals...)

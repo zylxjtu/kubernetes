@@ -245,11 +245,6 @@ func WaitForKubeletToStart(ctx context.Context, f *framework.Framework) {
 	}, time.Minute, time.Second).Should(gomega.BeTrueBecause("expected kubelet to be in ready state"))
 }
 
-func deleteStateFile(stateFileName string) {
-	err := exec.Command("/bin/sh", "-c", fmt.Sprintf("rm -f %s", stateFileName)).Run()
-	framework.ExpectNoError(err, "failed to delete the state file")
-}
-
 // listNamespaceEvents lists the events in the given namespace.
 func listNamespaceEvents(ctx context.Context, c clientset.Interface, ns string) error {
 	ls, err := c.CoreV1().Events(ns).List(ctx, metav1.ListOptions{})

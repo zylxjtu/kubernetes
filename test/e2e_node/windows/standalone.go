@@ -37,7 +37,7 @@ import (
 	"k8s.io/kubernetes/pkg/cluster/ports"
 	"k8s.io/kubernetes/test/e2e/feature"
 	"k8s.io/kubernetes/test/e2e/framework"
-	e2enodekubelet "k8s.io/kubernetes/test/e2e_node/kubeletconfig"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 	admissionapi "k8s.io/pod-security-admission/api"
 
@@ -47,25 +47,24 @@ import (
 	testutils "k8s.io/kubernetes/test/utils"
 )
 
-//var kubeletCfg *kubeletconfig.KubeletConfiguration
-
 var _ = SIGDescribe(feature.StandaloneMode, func() {
 	f := framework.NewDefaultFramework("static-pod")
 	f.NamespacePodSecurityLevel = admissionapi.LevelBaseline
-	ginkgo.Context("when creating aa windows static pod", func() {
+	ginkgo.Context("when creating a windows static pod", func() {
 		var ns, podPath, staticPodName string
 
 		ginkgo.It("the pod should be running", func(ctx context.Context) {
 			ns = f.Namespace.Name
 			staticPodName = "static-pod-" + string(uuid.NewUUID())
-			kubeletCfg, err := e2enodekubelet.GetCurrentKubeletConfig(ctx, framework.TestContext.NodeName, "", false, framework.TestContext.StandaloneMode)
-			if err != nil {
-				framework.Failf("error getting kubelet config from standalone kubelet: %v", err)
-			}
+			podPath = KubeletCfg.StaticPodPath
+			// kubeletCfg, err := e2enodekubelet.GetCurrentKubeletConfig(ctx, framework.TestContext.NodeName, "", false, framework.TestContext.StandaloneMode)
+			// if err != nil {
+			// 	framework.Failf("error getting kubelet config from standalone kubelet: %v", err)
+			// }
 
-			staticPodName = "static-pod-" + string(uuid.NewUUID())
-			podPath = kubeletCfg.StaticPodPath
-			err = createBasicStaticPod(podPath, staticPodName, ns)
+			// staticPodName = "static-pod-" + string(uuid.NewUUID())
+			// podPath = kubeletCfg.StaticPodPath
+			err := createBasicStaticPod(podPath, staticPodName, ns)
 			framework.ExpectNoError(err)
 
 			gomega.Eventually(ctx, func(ctx context.Context) error {

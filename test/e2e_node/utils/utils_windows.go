@@ -23,31 +23,81 @@ import (
 	"context"
 	"os/exec"
 	"regexp"
+	"strings"
 
 	"github.com/onsi/gomega"
 
 	"k8s.io/kubernetes/test/e2e/framework"
 )
 
-// findKubeletServiceName searches the unit name among the services known to systemd.
+const (
+	kubeletServiceName = "kubelet"
+)
+
+func getKubeletServicePID() string {
+	cmdLine := []string{"sc.exe", "queryex", kubeletServiceName}
+
+	// Assme kubelet service has already been registered
+	stdout, err := exec.Command(cmdLine[0], cmdLine[1:]...).CombinedOutput()
+	framework.ExpectNoError(err)
+
+	regex := regexp.MustCompile(`PID\s*:\s*(\d+)`)
+	matches := regex.FindStringSubmatch(string(stdout))
+	gomega.Expect(len(matches)).To(gomega.BeNumerically(">", 1), "Found the matched state: %q", stdout)
+	pid := matches[1]
+
+	return pid
+}
+
+func killProcessByPID(pid string) {
+	cmdLine := []string{"taskkill", "/F", "/PID", pid}
+
+	// Assme kubelet service has already been registered
+	_, err := exec.Command(cmdLine[0], cmdLine[1:]...).CombinedOutput()
+	framework.ExpectNoError(err)
+}
+
+// findKubeletServiceState searches the unit name among the services known to systemd.
 // if the `running` parameter is true, restricts the search among currently running services;
 // otherwise, also stopped, failed, exited (non-running in general) services are also considered.
 // TODO: Find a uniform way to deal with systemctl/initctl/service operations. #34494
-func findKubeletServiceName(running bool) string {
-	cmdLine := []string{
-		"powershell", "(Get-Process", "-Name", "*kubelet*).ProcessName",
-	}
+func findKubeletServiceState() string {
+	cmdLine := []string{"sc.exe", "query", kubeletServiceName}
+
+	// Assme kubelet service has already been registered
 	stdout, err := exec.Command(cmdLine[0], cmdLine[1:]...).CombinedOutput()
-
 	framework.ExpectNoError(err)
-	regex := regexp.MustCompile("(kubelet.*)")
 
+	regex := regexp.MustCompile(`(?m)STATE\s*:\s*\d+\s+(\w+)`)
 	matches := regex.FindStringSubmatch(string(stdout))
-	gomega.Expect(matches).ToNot(gomega.BeEmpty(), "Found more than one kubelet service running: %q", stdout)
-	kubeletServiceName := matches[0]
-	//framework.Logf("Get running kubelet with systemctl: %v, %v", string(stdout), kubeletServiceName)
-	framework.Logf("Get running kubelet with Get-Service: %v, %v", string(stdout), kubeletServiceName)
-	return kubeletServiceName
+	gomega.Expect(len(matches)).To(gomega.BeNumerically(">", 1), "Found the matched state: %q", stdout)
+	state := matches[1]
+
+	return state
+	// if running {
+	// 	if strings.EqualFold(state, "RUNNING") {
+	// 		return kubeletServiceName
+	// 	}
+
+	// 	return ""
+	// }
+
+	// return kubeletServiceName
+
+	// cmdLine := []string{
+	// 	"powershell", "(Get-Process", "-Name", "*kubelet*).ProcessName",
+	// }
+	// stdout, err := exec.Command(cmdLine[0], cmdLine[1:]...).CombinedOutput()
+
+	// framework.ExpectNoError(err)
+	// regex := regexp.MustCompile("(kubelet.*)")
+
+	// matches := regex.FindStringSubmatch(string(stdout))
+	// gomega.Expect(matches).ToNot(gomega.BeEmpty(), "Found more than one kubelet service running: %q", stdout)
+	// kubeletServiceName := matches[0]
+	// //framework.Logf("Get running kubelet with systemctl: %v, %v", string(stdout), kubeletServiceName)
+	// framework.Logf("Get running kubelet with Get-Service: %v, %v", string(stdout), kubeletServiceName)
+	// return kubeletServiceName
 }
 
 // restartKubelet restarts the current kubelet service.
@@ -59,26 +109,39 @@ func findKubeletServiceName(running bool) string {
 // recent kubelet service unit, IOW there is not a unique ID we use to bind explicitly a kubelet
 // instance to a test run.
 func RestartKubelet(ctx context.Context, running bool) {
-	kubeletServiceName := findKubeletServiceName(running)
-	// reset the kubelet service start-limit-hit
-	stdout, err := exec.CommandContext(ctx, "sudo", "systemctl", "reset-failed", kubeletServiceName).CombinedOutput()
-	framework.ExpectNoError(err, "Failed to reset kubelet start-limit-hit with systemctl: %v, %s", err, string(stdout))
+	// Check the state of the kubelet service
+	state := findKubeletServiceState()
 
-	stdout, err = exec.CommandContext(ctx, "sudo", "systemctl", "restart", kubeletServiceName).CombinedOutput()
-	framework.ExpectNoError(err, "Failed to restart kubelet with systemctl: %v, %s", err, string(stdout))
+	if strings.EqualFold(state, "RUNNING") {
+		// stop the kubelet service
+		stdout, err := exec.CommandContext(ctx, "sc.exe", "stop", kubeletServiceName).CombinedOutput()
+		framework.ExpectNoError(err, "Failed to stop kubelet service: %v, %s", err, string(stdout))
+	}
+	if strings.EqualFold(state, "STOP_PENDING") {
+		// stop the kubelet service
+		pid := getKubeletServicePID()
+		killProcessByPID(pid)
+	}
+
+	stdout, err := exec.CommandContext(ctx, "sc.exe", "start", kubeletServiceName).CombinedOutput()
+	framework.ExpectNoError(err, "Failed to restart kubelet with systemctl: %v, %v", err, stdout)
 }
 
 // mustStopKubelet will kill the running kubelet, and returns a func that will restart the process again
 func MustStopKubelet(ctx context.Context, f *framework.Framework) func(ctx context.Context) {
 	// TODO: change the windows part
-	kubeletServiceName := findKubeletServiceName(true)
+	state := findKubeletServiceState()
 
-	// reset the kubelet service start-limit-hit
-	stdout, err := exec.CommandContext(ctx, "sudo", "systemctl", "reset-failed", kubeletServiceName).CombinedOutput()
-	framework.ExpectNoError(err, "Failed to reset kubelet start-limit-hit with systemctl: %v, %s", err, string(stdout))
-
-	stdout, err = exec.CommandContext(ctx, "sudo", "systemctl", "kill", kubeletServiceName).CombinedOutput()
-	framework.ExpectNoError(err, "Failed to stop kubelet with systemctl: %v, %s", err, string(stdout))
+	if strings.EqualFold(state, "RUNNING") {
+		// stop the kubelet service
+		stdout, err := exec.CommandContext(ctx, "sc.exe", "stop", kubeletServiceName).CombinedOutput()
+		framework.ExpectNoError(err, "Failed to stop kubelet service: %v, %s", err, string(stdout))
+	}
+	if strings.EqualFold(state, "STOP_PENDING") {
+		// stop the kubelet service
+		pid := getKubeletServicePID()
+		killProcessByPID(pid)
+	}
 
 	// wait until the kubelet health check fail
 	gomega.Eventually(ctx, func() bool {
@@ -87,10 +150,32 @@ func MustStopKubelet(ctx context.Context, f *framework.Framework) func(ctx conte
 
 	return func(ctx context.Context) {
 		// we should restart service, otherwise the transient service start will fail
-		stdout, err := exec.CommandContext(ctx, "sudo", "systemctl", "restart", kubeletServiceName).CombinedOutput()
-		framework.ExpectNoError(err, "Failed to restart kubelet with systemctl: %v, %v", err, stdout)
+		stdout, err := exec.CommandContext(ctx, "sc.exe", "start", kubeletServiceName).CombinedOutput()
+		framework.ExpectNoError(err, "Failed to start kubelet service with sc.exe: %v, %s", err, string(stdout))
 		WaitForKubeletToStart(ctx, f)
 	}
+
+	// TODO: change the windows part
+	// kubeletServiceName := findKubeletServiceName(true)
+
+	// // reset the kubelet service start-limit-hit
+	// stdout, err := exec.CommandContext(ctx, "sudo", "systemctl", "reset-failed", kubeletServiceName).CombinedOutput()
+	// framework.ExpectNoError(err, "Failed to reset kubelet start-limit-hit with systemctl: %v, %s", err, string(stdout))
+
+	// stdout, err = exec.CommandContext(ctx, "sudo", "systemctl", "kill", kubeletServiceName).CombinedOutput()
+	// framework.ExpectNoError(err, "Failed to stop kubelet with systemctl: %v, %s", err, string(stdout))
+
+	// // wait until the kubelet health check fail
+	// gomega.Eventually(ctx, func() bool {
+	// 	return KubeletHealthCheck(KubeletHealthCheckURL)
+	// }, f.Timeouts.PodStart, f.Timeouts.Poll).Should(gomega.BeFalseBecause("kubelet was expected to be stopped but it is still running"))
+
+	// return func(ctx context.Context) {
+	// 	// we should restart service, otherwise the transient service start will fail
+	// 	stdout, err := exec.CommandContext(ctx, "sudo", "systemctl", "restart", kubeletServiceName).CombinedOutput()
+	// 	framework.ExpectNoError(err, "Failed to restart kubelet with systemctl: %v, %v", err, stdout)
+	// 	WaitForKubeletToStart(ctx, f)
+	// }
 }
 
 func StopContainerRuntime() error {
@@ -104,4 +189,9 @@ func StartContainerRuntime() error {
 // IsCgroup2UnifiedMode returns whether we are running in cgroup v2 unified mode.
 func IsCgroup2UnifiedMode() bool {
 	return false
+}
+
+func deleteStateFile(stateFileName string) {
+	// err := exec.Command("powershell", "-c", fmt.Sprintf("rm -f %s", stateFileName)).Run()
+	// framework.ExpectNoError(err, "failed to delete the state file")
 }

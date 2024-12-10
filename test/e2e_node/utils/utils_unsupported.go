@@ -45,3 +45,6 @@ func StopContainerRuntime() error {
 func StartContainerRuntime() error {
 	return nil
 }
+
+func deleteStateFile(stateFileName string) {
+}

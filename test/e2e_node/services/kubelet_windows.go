@@ -75,7 +75,7 @@ func adjustPlatformSpecificKubeletArgs(cmdArgs []string, isSystemd bool, killCom
 	newCmdArgs = append(newCmdArgs, "create")
 	newCmdArgs = append(newCmdArgs, "kubelet")
 	newCmdArgs = append(newCmdArgs, "binPath= "+kubeletArgListStr)
-	newCmdArgs = append(newCmdArgs, "start= auto")
+	//newCmdArgs = append(newCmdArgs, "start= auto")
 	newCmdArgs = append(newCmdArgs, "depend= containerd")
 
 	cmd := strings.Join(newCmdArgs, " ")

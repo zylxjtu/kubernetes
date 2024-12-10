@@ -39,6 +39,10 @@ type handler struct {
 	preshutdownHandler PreshutdownHandler
 }
 
+const (
+	PreshutdownSimulationCode = 128 // Custom control code (128–255 range)
+)
+
 type PreshutdownHandler interface {
 	ProcessShutdownEvent() error
 }
@@ -145,10 +149,10 @@ func (h *handler) Execute(_ []string, r <-chan svc.ChangeRequest, s chan<- svc.S
 	h.fromsvc <- nil
 
 	if h.acceptPreshutdown {
-		s <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptPreShutdown | svc.Accepted(windows.SERVICE_ACCEPT_PARAMCHANGE)}
+		s <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptPreShutdown | svc.AcceptParamChange}
 		klog.Infof("Accept preshutdown")
 	} else {
-		s <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown | svc.Accepted(windows.SERVICE_ACCEPT_PARAMCHANGE)}
+		s <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown | svc.AcceptParamChange}
 	}
 
 	klog.Infof("Service running")
@@ -191,15 +195,13 @@ Loop:
 					}()
 				}
 				break Loop
-			case svc.PreShutdown:
+			case svc.PreShutdown, svc.Cmd(PreshutdownSimulationCode):
 				klog.Infof("Node pre-shutdown")
 				s <- svc.Status{State: svc.StopPending}
 
 				if h.preshutdownHandler != nil {
 					h.preshutdownHandler.ProcessShutdownEvent()
 				}
-
-				break Loop
 			}
 		}
 	}

@@ -187,3 +187,8 @@ func MustStopKubelet(ctx context.Context, f *framework.Framework) func(ctx conte
 		WaitForKubeletToStart(ctx, f)
 	}
 }
+
+func deleteStateFile(stateFileName string) {
+	err := exec.Command("/bin/sh", "-c", fmt.Sprintf("rm -f %s", stateFileName)).Run()
+	framework.ExpectNoError(err, "failed to delete the state file")
+}
