@@ -1004,7 +1004,7 @@ func TestValidateClaimStatusUpdate(t *testing.T) {
 							{Type: "test-6", Status: metav1.ConditionTrue, Reason: "test_reason", LastTransitionTime: metav1.Now(), ObservedGeneration: 0},
 							{Type: "test-7", Status: metav1.ConditionTrue, Reason: "test_reason", LastTransitionTime: metav1.Now(), ObservedGeneration: 0},
 						},
-						Data: runtime.RawExtension{
+						Data: &runtime.RawExtension{
 							Raw: []byte(`{"kind": "foo", "apiVersion": "dra.example.com/v1"}`),
 						},
 						NetworkData: &resource.NetworkDeviceData{
@@ -1095,7 +1095,7 @@ func TestValidateClaimStatusUpdate(t *testing.T) {
 						Driver: goodName,
 						Pool:   goodName,
 						Device: goodName,
-						Data: runtime.RawExtension{
+						Data: &runtime.RawExtension{
 							Raw: []byte(`foo`),
 						},
 					},
@@ -1117,7 +1117,7 @@ func TestValidateClaimStatusUpdate(t *testing.T) {
 						Driver: goodName,
 						Pool:   goodName,
 						Device: goodName,
-						Data:   runtime.RawExtension{Raw: []byte(`{"str": "` + strings.Repeat("x", resource.AllocatedDeviceStatusDataMaxLength-9-2+1 /* too large by one */) + `"}`)},
+						Data:   &runtime.RawExtension{Raw: []byte(`{"str": "` + strings.Repeat("x", resource.AllocatedDeviceStatusDataMaxLength-9-2+1 /* too large by one */) + `"}`)},
 						Conditions: []metav1.Condition{
 							{Type: "test-0", Status: metav1.ConditionTrue, Reason: "test_reason", LastTransitionTime: metav1.Now(), ObservedGeneration: 0},
 							{Type: "test-1", Status: metav1.ConditionTrue, Reason: "test_reason", LastTransitionTime: metav1.Now(), ObservedGeneration: 0},
@@ -1224,7 +1224,7 @@ func TestValidateClaimStatusUpdate(t *testing.T) {
 						Driver: goodName,
 						Pool:   goodName,
 						Device: goodName,
-						Data: runtime.RawExtension{
+						Data: &runtime.RawExtension{
 							Raw: []byte(`foo`),
 						},
 					},
@@ -1246,7 +1246,7 @@ func TestValidateClaimStatusUpdate(t *testing.T) {
 						Driver: goodName,
 						Pool:   goodName,
 						Device: goodName,
-						Data:   runtime.RawExtension{Raw: []byte(`{"str": "` + strings.Repeat("x", resource.AllocatedDeviceStatusDataMaxLength-9-2+1 /* too large by one */) + `"}`)},
+						Data:   &runtime.RawExtension{Raw: []byte(`{"str": "` + strings.Repeat("x", resource.AllocatedDeviceStatusDataMaxLength-9-2+1 /* too large by one */) + `"}`)},
 						Conditions: []metav1.Condition{
 							{Type: "test-0", Status: metav1.ConditionTrue, Reason: "test_reason", LastTransitionTime: metav1.Now(), ObservedGeneration: 0},
 							{Type: "test-1", Status: metav1.ConditionTrue, Reason: "test_reason", LastTransitionTime: metav1.Now(), ObservedGeneration: 0},
