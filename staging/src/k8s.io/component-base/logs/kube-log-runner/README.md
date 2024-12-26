@@ -15,7 +15,7 @@ Why do we need this?
 - Nowadays, the `--log-file` parameter is deprecated for Kubernetes components
   and should not be used anymore. `kube-log-runner` is a direct replacement.
 
-## flags
+## Flags
 
 - -enable-flush
   The `-enable-flush` flag is an optional boolean flag that controls whether the 
@@ -45,10 +45,12 @@ Why do we need this?
   file will be created at the path specified by the `-log-file` flag, ready for future log entries.
 
   Backup File Naming Convention:
-    <original-file-name>-<timestamp><file-extension>
-    <original-file-name>: The name of the original log file, without the file extension.
-    <timestamp>: A timestamp is added to each backup file’s name to uniquely identify it based on the time it was created.
-    <file-extension>: The original file’s extension (e.g., .log) remains unchanged.
+    `<original-file-name>-<timestamp><file-extension>`
+    `<original-file-name>`: The name of the original log file, without the file extension.
+    `<timestamp>`: A timestamp is added to each backup file’s name to uniquely identify it
+    based on the time it was created. The timestamp follows the format "20060102-150405".
+    For example, a backup created on June 2, 2006, at 3:04:05 PM would include this timestamp.
+    `<file-extension>`: The original file’s extension (e.g., .log) remains unchanged.
   This naming convention ensures easy organization and retrieval of rotated log files based on their creation time.
 
 - -log-file-age
@@ -102,10 +104,15 @@ kube-log-runner -log-file=/tmp/log echo "hello world"
 # Copy into log file and print to stdout (same as 2>&1 | tee -a /tmp/log).
 kube-log-runner -log-file=/tmp/log -also-stdout echo "hello world"
 
-# Copy into log file and print to stdout (same as 2>&1 | tee -a /tmp/log), will flush the logging file in 5s, rotate the log file when its size exceedes 10 MB
+# Copy into log file and print to stdout (same as 2>&1 | tee -a /tmp/log), 
+# will flush the logging file in 5s, 
+# rotate the log file when its size exceedes 10 MB
 kube-log-runner -enable-flush=true -log-file=/tmp/log -log-file-size=10M -also-stdout echo "hello world"
 
-# Copy into log file and print to stdout (same as 2>&1 | tee -a /tmp/log), will flush the logging file in 5s, rotate the log file when its size exceedes 10 MB, and clean up old rotated log files when their age are older than 168h (7 days)
+# Copy into log file and print to stdout (same as 2>&1 | tee -a /tmp/log), 
+# will flush the logging file in 5s, 
+# rotate the log file when its size exceedes 10 MB, 
+# and clean up old rotated log files when their age are older than 168h (7 days)
 kube-log-runner -enable-flush=true -log-file=/tmp/log -log-file-size=10M -log-file-age=168h -also-stdout echo "hello world"
 
 # Redirect only stdout into log file (same as 1>>/tmp/log).

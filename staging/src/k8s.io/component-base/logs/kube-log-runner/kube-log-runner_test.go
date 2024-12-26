@@ -22,8 +22,7 @@ import (
 	"os"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/component-base/logs/logrotation"
+	"k8s.io/component-base/logs/kube-log-runner/internal/logrotation"
 )
 
 // TestConfigureAndRun tests configureAndRun with various flag inputs.
@@ -34,47 +33,47 @@ func TestConfigureAndRun(t *testing.T) {
 		outputWanted string
 	}{
 		{
-			name:         "No log-file flag",
+			name:         "No_log-file_flag",
 			commandLine:  []string{"echo", "hello"},
 			outputWanted: "hello\n",
 		},
 		{
-			name:         "No log-file flag with extra other flags",
+			name:         "No_log-file_flag_with_extra_other_flags",
 			commandLine:  []string{"-enable-flush=true", "-log-file-size=1Gi", "-log-file-age=24h30m", "echo", "hello"},
 			outputWanted: "hello\n",
 		},
 		{
-			name:         "log-file flag only",
+			name:         "log-file_flag_only",
 			commandLine:  []string{"-log-file=test.log", "echo", "hello"},
 			outputWanted: "filePath: test.log, enableFlush: false, maxSize: 0, maxAge: 0s",
 		},
 		{
-			name:         "log-file flag with enable-flush flag",
+			name:         "log-file_flag_with_enable-flush_flag",
 			commandLine:  []string{"-log-file=test.log", "-enable-flush=true", "echo", "hello"},
 			outputWanted: "filePath: test.log, enableFlush: true, maxSize: 0, maxAge: 0s",
 		},
 		{
-			name:         "log-file flag with enable-flush flag and log-file-size flag",
+			name:         "log-file_flag_with_enable-flush_flag_and_log-file-size_flag",
 			commandLine:  []string{"-log-file=test.log", "-enable-flush=true", "-log-file-size=15M", "echo", "hello"},
 			outputWanted: "filePath: test.log, enableFlush: true, maxSize: 15000000, maxAge: 0s",
 		},
 		{
-			name:         "Invalid CPU format log-file-size flag",
+			name:         "Invalid_CPU_format_log-file-size_flag",
 			commandLine:  []string{"-log-file=test.log", "-enable-flush=true", "-log-file-size=125m", "echo", "hello"},
 			outputWanted: "filePath: test.log, enableFlush: true, maxSize: 1, maxAge: 0s",
 		},
 		{
-			name:         "log-file flag with enable-flush flag and log-file-size flag and log-file-age flag",
+			name:         "log-file_flag_with_enable-flush_flag_and_log-file-size_flag_and_log-file-age_flag",
 			commandLine:  []string{"-log-file=test.log", "-enable-flush=true", "-log-file-size=1Gi", "-log-file-age=24h30m", "echo", "hello"},
 			outputWanted: "filePath: test.log, enableFlush: true, maxSize: 1073741824, maxAge: 24h30m0s",
 		},
 		{
-			name:         "log-file flag with enable-flush flag and log-file-size flag and log-file-age flag and also-stdout flag",
+			name:         "log-file_flag_with_enable-flush_flag_and_log-file-size_flag_and_log-file-age_flag_and_also-stdout_flag",
 			commandLine:  []string{"-log-file=test.log", "-enable-flush=true", "-log-file-size=1500", "-log-file-age=24h30m", "-also-stdout", "echo", "hello"},
 			outputWanted: "filePath: test.log, enableFlush: true, maxSize: 1500, maxAge: 24h30m0shello\n",
 		},
 		{
-			name:         "log-file flag with enable-flush flag and log-file-size flag and log-file-age flag and also-stdout flag and redirect-stderr",
+			name:         "log-file_flag_with_enable-flush_flag_and_log-file-size_flag_and_log-file-age_flag_and_also-stdout_flag_and_redirect-stderr",
 			commandLine:  []string{"-log-file=test.log", "-enable-flush=true", "-log-file-size=1500", "-log-file-age=24h30m", "-also-stdout", "-redirect-stderr=false", "echo", "hello"},
 			outputWanted: "filePath: test.log, enableFlush: true, maxSize: 1500, maxAge: 24h30m0shello\n",
 		},
@@ -142,22 +141,22 @@ func TestNegativeConfigureAndRun(t *testing.T) {
 		errorWanted string
 	}{
 		{
-			name:        "Empty commandline",
+			name:        "Empty_commandline",
 			commandLine: []string{},
 			errorWanted: "not enough arguments to run",
 		},
 		{
-			name:        "Invalid log-file-size flag",
+			name:        "Invalid_log-file-size_flag",
 			commandLine: []string{"-log-file-size=10MM", "test"},
 			errorWanted: "invalid value \"10MM\" for flag -log-file-size: unable to parse quantity's suffix",
 		},
 		{
-			name:        "Negative log-file-size flag",
+			name:        "Negative_log-file-size_flag",
 			commandLine: []string{"-log-file-size=-10M", "test"},
 			errorWanted: "log-file-size must be non-negative quantity",
 		},
 		{
-			name:        "Invalid log-file-age flag",
+			name:        "Invalid_log-file-age_flag",
 			commandLine: []string{"-log-file-age=-10h", "test"},
 			errorWanted: "log-file-age must be non-negative",
 		},
@@ -184,15 +183,5 @@ func TestNegativeConfigureAndRun(t *testing.T) {
 func resetFlags() {
 	// Reinitialize the flag to the default value
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-
-	logFileSize = resource.QuantityValue{}
-
-	// Keep sync with the ones in kube-log-runner
-	enableFlush = flag.Bool("enable-flush", false, "enable flush to log file in every 5 seconds")
-	logFilePath = flag.String("log-file", "", "If non-empty, save stdout to this file")
-	logFileAge = flag.Duration("log-file-age", 0, "Useful with log-file-size, in format of timeDuration, if non-zero, remove log files older than this duration")
-	alsoToStdOut = flag.Bool("also-stdout", false, "useful with log-file, log to standard output as well as the log file")
-	redirectStderr = flag.Bool("redirect-stderr", true, "treat stderr same as stdout")
-
-	flag.Var(&logFileSize, "log-file-size", "Useful with log-file, in format of resource.quantity , if non-zero, rotate log file when it reaches this size")
+	initFlags()
 }

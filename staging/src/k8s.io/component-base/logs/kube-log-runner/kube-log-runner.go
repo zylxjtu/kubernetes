@@ -29,29 +29,38 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/component-base/logs/logrotation"
+	"k8s.io/component-base/logs/kube-log-runner/internal/logrotation"
 )
 
 type OpenFunc func(filePath string, enableFlush bool, maxSize int64, maxAge time.Duration) (io.WriteCloser, error)
 
 var (
-	enableFlush    = flag.Bool("enable-flush", false, "enable flush to log file in every 5 seconds")
-	logFilePath    = flag.String("log-file", "", "If non-empty, save stdout to this file")
-	logFileSize    resource.QuantityValue
-	logFileAge     = flag.Duration("log-file-age", 0, "useful with log-file-size, in format of timeDuration, if non-zero, remove log files older than this duration")
-	alsoToStdOut   = flag.Bool("also-stdout", false, "useful with log-file, log to standard output as well as the log file")
-	redirectStderr = flag.Bool("redirect-stderr", true, "treat stderr same as stdout")
+	enableFlush    *bool
+	logFilePath    *string
+	logFileSize    *resource.QuantityValue
+	logFileAge     *time.Duration
+	alsoToStdOut   *bool
+	redirectStderr *bool
 )
 
+func initFlags() {
+	logFileSize = &resource.QuantityValue{}
+	enableFlush = flag.Bool("enable-flush", false, "enable flush to log file in every 5 seconds")
+	logFilePath = flag.String("log-file", "", "If non-empty, save stdout to this file")
+	flag.Var(logFileSize, "log-file-size", "useful with log-file, in format of resource.quantity, default value 0, if non-zero, rotate log file when it reaches this size")
+	logFileAge = flag.Duration("log-file-age", 0, "useful with log-file-size, in format of timeDuration, if non-zero, remove log files older than this duration")
+	alsoToStdOut = flag.Bool("also-stdout", false, "useful with log-file, log to standard output as well as the log file")
+	redirectStderr = flag.Bool("redirect-stderr", true, "treat stderr same as stdout")
+}
+
 func main() {
-	flag.Var(&logFileSize, "log-file-size", "useful with log-file, in format of resource.quantity, default value 0, if non-zero, rotate log file when it reaches this size")
+	initFlags()
 	flag.Parse()
 
 	if err := configureAndRun(logrotation.Open); err != nil {
 		log.Fatal(err)
 	}
 }
-
 func configureAndRun(open OpenFunc) error {
 	var (
 		outputStream io.Writer = os.Stdout

@@ -27,7 +27,7 @@ import (
 
 const timeLayout string = "20060102-150405"
 
-type RotationFile struct {
+type rotationFile struct {
 	// required, the max size of the log file in bytes, 0 means no rotation
 	maxSize int64
 	// required, the max age of the log file, 0 means no cleanup
@@ -36,15 +36,16 @@ type RotationFile struct {
 	mut         sync.Mutex
 	file        *os.File
 	currentSize int64
-	isFlushed   bool
-	stop        chan struct{}
+	lasSyncTime time.Time
+	enableFlush bool
 }
 
 func Open(filePath string, enableFlush bool, maxSize int64, maxAge time.Duration) (io.WriteCloser, error) {
-	w := &RotationFile{
-		filePath: filePath,
-		maxSize:  maxSize,
-		maxAge:   maxAge,
+	w := &rotationFile{
+		filePath:    filePath,
+		maxSize:     maxSize,
+		maxAge:      maxAge,
+		enableFlush: enableFlush,
 	}
 
 	logFile, err := os.OpenFile(w.filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -54,27 +55,7 @@ func Open(filePath string, enableFlush bool, maxSize int64, maxAge time.Duration
 
 	w.file = logFile
 
-	w.isFlushed = true
-	if enableFlush {
-		interval := time.NewTicker(time.Second * 5)
-		w.stop = make(chan struct{})
-
-		go func() {
-			defer interval.Stop()
-			for {
-				select {
-				case <-interval.C:
-					// This block runs every time the ticker ticks
-					w.mut.Lock()
-					w.isFlushed = false
-					w.mut.Unlock()
-				case <-w.stop:
-					// Stop signal received, exiting the goroutine
-					return
-				}
-			}
-		}()
-	}
+	w.lasSyncTime = time.Now()
 
 	if w.maxSize > 0 {
 		info, err := os.Stat(w.filePath)
@@ -88,7 +69,7 @@ func Open(filePath string, enableFlush bool, maxSize int64, maxAge time.Duration
 }
 
 // write func to satisfy io.writer interface
-func (w *RotationFile) Write(p []byte) (n int, err error) {
+func (w *rotationFile) Write(p []byte) (n int, err error) {
 	w.mut.Lock()
 	defer w.mut.Unlock()
 
@@ -97,12 +78,12 @@ func (w *RotationFile) Write(p []byte) (n int, err error) {
 		return 0, err
 	}
 
-	if !w.isFlushed {
+	if w.enableFlush && time.Since(w.lasSyncTime) >= time.Second*5 {
 		err = w.file.Sync()
 		if err != nil {
 			return 0, err
 		}
-		w.isFlushed = true
+		w.lasSyncTime = time.Now()
 	}
 
 	if w.maxSize > 0 {
@@ -125,7 +106,7 @@ func (w *RotationFile) Write(p []byte) (n int, err error) {
 	return n, nil
 }
 
-func (w *RotationFile) rotate() error {
+func (w *rotationFile) rotate() error {
 	// Get the file extension
 	ext := filepath.Ext(w.filePath)
 
@@ -168,7 +149,7 @@ func (w *RotationFile) rotate() error {
 // <basename>-<timestamp><ext>
 // This should be safe enough to avoid false deletion
 // This will work for multiple restarts of the same program
-func (w *RotationFile) clean(pathWithoutExt string, ext string) error {
+func (w *rotationFile) clean(pathWithoutExt string, ext string) error {
 	ageTime := time.Now().Add(-w.maxAge)
 
 	directory := filepath.Dir(pathWithoutExt)
@@ -210,7 +191,7 @@ func (w *RotationFile) clean(pathWithoutExt string, ext string) error {
 	return err
 }
 
-func (w *RotationFile) Close() error {
+func (w *rotationFile) Close() error {
 	w.mut.Lock()
 	defer w.mut.Unlock()
 
@@ -223,10 +204,6 @@ func (w *RotationFile) Close() error {
 	err = w.file.Close()
 	if err != nil {
 		return err
-	}
-
-	if w.stop != nil {
-		close(w.stop)
 	}
 
 	return nil
