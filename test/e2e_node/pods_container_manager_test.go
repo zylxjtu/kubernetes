@@ -27,6 +27,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/cm"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 	admissionapi "k8s.io/pod-security-admission/api"
 
@@ -66,12 +67,12 @@ const (
 func makePodToVerifyCgroups(cgroupNames []string) *v1.Pod {
 	// convert the names to their literal cgroupfs forms...
 	cgroupFsNames := []string{}
-	rootCgroupName := cm.NewCgroupName(cm.RootCgroupName, defaultNodeAllocatableCgroup)
+	rootCgroupName := cm.NewCgroupName(cm.RootCgroupName, DefaultNodeAllocatableCgroup)
 	for _, baseName := range cgroupNames {
 		// Add top level cgroup used to enforce node allocatable.
 		cgroupComponents := strings.Split(baseName, "/")
 		cgroupName := cm.NewCgroupName(rootCgroupName, cgroupComponents...)
-		cgroupFsNames = append(cgroupFsNames, toCgroupFsName(cgroupName))
+		cgroupFsNames = append(cgroupFsNames, ToCgroupFsName(cgroupName))
 	}
 	klog.Infof("expecting %v cgroups to be found", cgroupFsNames)
 	// build the pod command to either verify cgroups exist
@@ -95,7 +96,7 @@ func makePodToVerifyCgroups(cgroupNames []string) *v1.Pod {
 			RestartPolicy: v1.RestartPolicyNever,
 			Containers: []v1.Container{
 				{
-					Image:   busyboxImage,
+					Image:   BusyboxImage,
 					Name:    "container" + string(uuid.NewUUID()),
 					Command: []string{"sh", "-c", command},
 					VolumeMounts: []v1.VolumeMount{
@@ -123,7 +124,7 @@ func makePodToVerifyCgroups(cgroupNames []string) *v1.Pod {
 func makePodToVerifyCgroupRemoved(baseName string) *v1.Pod {
 	components := strings.Split(baseName, "/")
 	cgroupName := cm.NewCgroupName(cm.RootCgroupName, components...)
-	cgroupFsName := toCgroupFsName(cgroupName)
+	cgroupFsName := ToCgroupFsName(cgroupName)
 
 	command := ""
 	if IsCgroup2UnifiedMode() {
@@ -140,7 +141,7 @@ func makePodToVerifyCgroupRemoved(baseName string) *v1.Pod {
 			RestartPolicy: v1.RestartPolicyOnFailure,
 			Containers: []v1.Container{
 				{
-					Image:   busyboxImage,
+					Image:   BusyboxImage,
 					Name:    "container" + string(uuid.NewUUID()),
 					Command: []string{"sh", "-c", command},
 					VolumeMounts: []v1.VolumeMount{
@@ -171,7 +172,7 @@ var _ = SIGDescribe("Kubelet Cgroup Manager", func() {
 	ginkgo.Describe("QOS containers", func() {
 		ginkgo.Context("On enabling QOS cgroup hierarchy", func() {
 			f.It("Top level QoS containers should have been created", f.WithNodeConformance(), func(ctx context.Context) {
-				if !kubeletCfg.CgroupsPerQOS {
+				if !KubeletCfg.CgroupsPerQOS {
 					return
 				}
 				cgroupsToVerify := []string{burstableCgroup, bestEffortCgroup}
@@ -186,7 +187,7 @@ var _ = SIGDescribe("Kubelet Cgroup Manager", func() {
 	f.Describe("Pod containers", f.WithNodeConformance(), func() {
 		ginkgo.Context("On scheduling a Guaranteed Pod", func() {
 			ginkgo.It("Pod containers should have been created under the cgroup-root", func(ctx context.Context) {
-				if !kubeletCfg.CgroupsPerQOS {
+				if !KubeletCfg.CgroupsPerQOS {
 					return
 				}
 				var (
@@ -231,7 +232,7 @@ var _ = SIGDescribe("Kubelet Cgroup Manager", func() {
 		})
 		ginkgo.Context("On scheduling a BestEffort Pod", func() {
 			ginkgo.It("Pod containers should have been created under the BestEffort cgroup", func(ctx context.Context) {
-				if !kubeletCfg.CgroupsPerQOS {
+				if !KubeletCfg.CgroupsPerQOS {
 					return
 				}
 				var (
@@ -276,7 +277,7 @@ var _ = SIGDescribe("Kubelet Cgroup Manager", func() {
 		})
 		ginkgo.Context("On scheduling a Burstable Pod", func() {
 			ginkgo.It("Pod containers should have been created under the Burstable cgroup", func(ctx context.Context) {
-				if !kubeletCfg.CgroupsPerQOS {
+				if !KubeletCfg.CgroupsPerQOS {
 					return
 				}
 				var (

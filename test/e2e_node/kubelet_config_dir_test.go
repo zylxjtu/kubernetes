@@ -28,6 +28,7 @@ import (
 	kubeletconfig "k8s.io/kubernetes/pkg/kubelet/apis/config"
 	"k8s.io/kubernetes/test/e2e/framework"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 )
 
 var _ = SIGDescribe("Kubelet Config", framework.WithSlow(), framework.WithSerial(), framework.WithDisruptive(), nodefeature.KubeletConfigDropInDir, func() {
@@ -36,7 +37,7 @@ var _ = SIGDescribe("Kubelet Config", framework.WithSlow(), framework.WithSerial
 		var oldcfg *kubeletconfig.KubeletConfiguration
 		ginkgo.BeforeEach(func(ctx context.Context) {
 			var err error
-			oldcfg, err = getCurrentKubeletConfig(ctx)
+			oldcfg, err = GetCurrentKubeletConfig(ctx)
 			framework.ExpectNoError(err)
 		})
 		ginkgo.AfterEach(func(ctx context.Context) {
@@ -46,15 +47,15 @@ var _ = SIGDescribe("Kubelet Config", framework.WithSlow(), framework.WithSerial
 				err := os.Remove(file)
 				framework.ExpectNoError(err)
 			}
-			updateKubeletConfig(ctx, f, oldcfg, true)
+			UpdateKubeletConfig(ctx, f, oldcfg, true)
 		})
 		ginkgo.It("should merge kubelet configs correctly", func(ctx context.Context) {
 			// Get the initial kubelet configuration
-			initialConfig, err := getCurrentKubeletConfig(ctx)
+			initialConfig, err := GetCurrentKubeletConfig(ctx)
 			framework.ExpectNoError(err)
 
 			ginkgo.By("Stopping the kubelet")
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := MustStopKubelet(ctx, f)
 
 			configDir := framework.TestContext.KubeletConfigDropinDir
 
@@ -126,10 +127,10 @@ featureGates:
 			restartKubelet(ctx)
 			// wait until the kubelet health check will succeed
 			gomega.Eventually(ctx, func() bool {
-				return kubeletHealthCheck(kubeletHealthCheckURL)
+				return KubeletHealthCheck(KubeletHealthCheckURL)
 			}, f.Timeouts.PodStart, f.Timeouts.Poll).Should(gomega.BeTrueBecause("expected kubelet to be in healthy state"))
 
-			mergedConfig, err := getCurrentKubeletConfig(ctx)
+			mergedConfig, err := GetCurrentKubeletConfig(ctx)
 			framework.ExpectNoError(err)
 
 			// Replace specific fields in the initial configuration with expectedConfig values

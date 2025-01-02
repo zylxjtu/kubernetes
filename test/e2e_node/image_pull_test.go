@@ -39,6 +39,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	"k8s.io/kubernetes/test/e2e_node/criproxy"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 	admissionapi "k8s.io/pod-security-admission/api"
 	"k8s.io/utils/ptr"
@@ -54,13 +55,13 @@ var _ = SIGDescribe("Pull Image", feature.CriProxy, framework.WithSerial(), func
 	var testpods []*v1.Pod
 
 	ginkgo.Context("parallel image pull with MaxParallelImagePulls=5", func() {
-		tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+		TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
 			initialConfig.SerializeImagePulls = false
 			initialConfig.MaxParallelImagePulls = ptr.To[int32](5)
 		})
 
 		ginkgo.BeforeEach(func(ctx context.Context) {
-			if err := resetCRIProxyInjector(e2eCriProxy); err != nil {
+			if err := ResetCRIProxyInjector(e2eCriProxy); err != nil {
 				ginkgo.Skip("Skip the test since the CRI Proxy is undefined.")
 			}
 
@@ -69,7 +70,7 @@ var _ = SIGDescribe("Pull Image", feature.CriProxy, framework.WithSerial(), func
 		})
 
 		ginkgo.AfterEach(func(ctx context.Context) {
-			err := resetCRIProxyInjector(e2eCriProxy)
+			err := ResetCRIProxyInjector(e2eCriProxy)
 			framework.ExpectNoError(err)
 
 			ginkgo.By("cleanup pods")
@@ -83,7 +84,7 @@ var _ = SIGDescribe("Pull Image", feature.CriProxy, framework.WithSerial(), func
 			timeout := 20 * time.Second
 			callCh := make(chan struct{})
 			callStatus := make(map[int]chan struct{})
-			err := addCRIProxyInjector(e2eCriProxy, func(apiName string) error {
+			err := AddCRIProxyInjector(e2eCriProxy, func(apiName string) error {
 				if apiName == criproxy.PullImage {
 					mu.Lock()
 					callID := len(callStatus)
@@ -135,7 +136,7 @@ var _ = SIGDescribe("Pull Image", feature.CriProxy, framework.WithSerial(), func
 
 	ginkgo.Context("serialize image pull", func() {
 		// this is the default behavior now.
-		tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+		TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
 			initialConfig.SerializeImagePulls = true
 			initialConfig.MaxParallelImagePulls = ptr.To[int32](1)
 		})
@@ -143,7 +144,7 @@ var _ = SIGDescribe("Pull Image", feature.CriProxy, framework.WithSerial(), func
 		var testpods []*v1.Pod
 
 		ginkgo.BeforeEach(func(ctx context.Context) {
-			if err := resetCRIProxyInjector(e2eCriProxy); err != nil {
+			if err := ResetCRIProxyInjector(e2eCriProxy); err != nil {
 				ginkgo.Skip("Skip the test since the CRI Proxy is undefined.")
 			}
 
@@ -152,7 +153,7 @@ var _ = SIGDescribe("Pull Image", feature.CriProxy, framework.WithSerial(), func
 		})
 
 		ginkgo.AfterEach(func(ctx context.Context) {
-			err := resetCRIProxyInjector(e2eCriProxy)
+			err := ResetCRIProxyInjector(e2eCriProxy)
 			framework.ExpectNoError(err)
 
 			ginkgo.By("cleanup pods")
@@ -167,7 +168,7 @@ var _ = SIGDescribe("Pull Image", feature.CriProxy, framework.WithSerial(), func
 			var mu sync.Mutex
 			callCh := make(chan struct{})
 			callStatus := make(map[int]chan struct{})
-			err := addCRIProxyInjector(e2eCriProxy, func(apiName string) error {
+			err := AddCRIProxyInjector(e2eCriProxy, func(apiName string) error {
 				if apiName == criproxy.PullImage {
 					mu.Lock()
 					callID := len(callStatus)
@@ -233,13 +234,13 @@ var _ = SIGDescribe("Pull Image", feature.CriProxy, framework.WithSerial(), func
 	})
 
 	ginkgo.It("Image pull retry backs off on error.", func(ctx context.Context) {
-		if err := resetCRIProxyInjector(e2eCriProxy); err != nil {
+		if err := ResetCRIProxyInjector(e2eCriProxy); err != nil {
 			ginkgo.Skip("Skip the test since the CRI Proxy is undefined.")
 		}
 
 		// inject PullImage failed to trigger backoff
 		expectedErr := fmt.Errorf("PullImage failed")
-		err := addCRIProxyInjector(e2eCriProxy, func(apiName string) error {
+		err := AddCRIProxyInjector(e2eCriProxy, func(apiName string) error {
 			if apiName == criproxy.PullImage {
 				return expectedErr
 			}
@@ -319,7 +320,7 @@ func prepareAndCleanup(ctx context.Context, f *framework.Framework) (testpods []
 	// cuda images are > 2Gi and it will reduce the flaky rate
 	image1 := imageutils.GetE2EImage(imageutils.Httpd)
 	image2 := imageutils.GetE2EImage(imageutils.HttpdNew)
-	node := getNodeName(ctx, f)
+	node := GetNodeName(ctx, f)
 
 	testpod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{

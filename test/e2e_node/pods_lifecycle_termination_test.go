@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	testutils "k8s.io/kubernetes/test/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 
@@ -106,7 +107,7 @@ func getSigkillTargetPod(podName string, ctnName string) *v1.Pod {
 			Containers: []v1.Container{
 				{
 					Name:  ctnName,
-					Image: busyboxImage,
+					Image: BusyboxImage,
 					// In the main container, SIGTERM was trapped and later /tmp/healthy
 					// will be created for readiness probe to verify if the trap was
 					// executed successfully

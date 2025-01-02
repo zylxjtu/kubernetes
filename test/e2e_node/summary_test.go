@@ -31,6 +31,7 @@ import (
 	e2ekubectl "k8s.io/kubernetes/test/e2e/framework/kubectl"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2evolume "k8s.io/kubernetes/test/e2e/framework/volume"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 
 	systemdutil "github.com/coreos/go-systemd/v22/util"
@@ -83,7 +84,7 @@ var _ = SIGDescribe("Summary API", framework.WithNodeConformance(), func() {
 				maxStatsAge = time.Minute
 			)
 			ginkgo.By("Fetching node so we can match against an appropriate memory limit")
-			node := getLocalNode(ctx, f)
+			node := GetLocalNode(ctx, f)
 			memoryCapacity := node.Status.Capacity["memory"]
 			memoryLimit := memoryCapacity.Value()
 			fsCapacityBounds := bounded(100*e2evolume.Mb, 10*e2evolume.Tb)
@@ -343,9 +344,9 @@ var _ = SIGDescribe("Summary API", framework.WithNodeConformance(), func() {
 
 			ginkgo.By("Validating /stats/summary")
 			// Give pods a minute to actually start up.
-			gomega.Eventually(ctx, getNodeSummary, 180*time.Second, 15*time.Second).Should(matchExpectations)
+			gomega.Eventually(ctx, GetNodeSummary, 180*time.Second, 15*time.Second).Should(matchExpectations)
 			// Then the summary should match the expectations a few more times.
-			gomega.Consistently(ctx, getNodeSummary, 30*time.Second, 15*time.Second).Should(matchExpectations)
+			gomega.Consistently(ctx, GetNodeSummary, 30*time.Second, 15*time.Second).Should(matchExpectations)
 		})
 	})
 })
@@ -362,7 +363,7 @@ func getSummaryTestPods(f *framework.Framework, numRestarts int32, names ...stri
 				Containers: []v1.Container{
 					{
 						Name:  "busybox-container",
-						Image: busyboxImage,
+						Image: BusyboxImage,
 						SecurityContext: &v1.SecurityContext{
 							Capabilities: &v1.Capabilities{
 								Add: []v1.Capability{"NET_RAW"},
@@ -455,7 +456,7 @@ func recent(d time.Duration) types.GomegaMatcher {
 }
 
 func recordSystemCgroupProcesses(ctx context.Context) {
-	cfg, err := getCurrentKubeletConfig(ctx)
+	cfg, err := GetCurrentKubeletConfig(ctx)
 	if err != nil {
 		framework.Logf("Failed to read kubelet config: %v", err)
 		return

@@ -33,6 +33,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
 	"k8s.io/kubernetes/test/e2e/framework"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 	admissionapi "k8s.io/pod-security-admission/api"
 
@@ -53,7 +54,7 @@ var _ = SIGDescribe("MirrorPod", func() {
 			staticPodName = "static-pod-" + string(uuid.NewUUID())
 			mirrorPodName = staticPodName + "-" + framework.TestContext.NodeName
 
-			podPath = kubeletCfg.StaticPodPath
+			podPath = KubeletCfg.StaticPodPath
 
 			ginkgo.By("create the static pod")
 			err := createStaticPod(podPath, staticPodName, ns,
@@ -157,7 +158,7 @@ var _ = SIGDescribe("MirrorPod", func() {
 			staticPodName = "static-pod-" + string(uuid.NewUUID())
 			mirrorPodName = staticPodName + "-" + framework.TestContext.NodeName
 
-			podPath = kubeletCfg.StaticPodPath
+			podPath = KubeletCfg.StaticPodPath
 			ginkgo.By("create the static pod")
 			err := createStaticPod(podPath, staticPodName, ns,
 				imageutils.GetE2EImage(imageutils.Nginx), v1.RestartPolicyAlways)
@@ -200,7 +201,7 @@ var _ = SIGDescribe("MirrorPod", func() {
 	ginkgo.Context("when recreating a static pod", func() {
 		var ns, podPath, staticPodName, mirrorPodName string
 		f.It("it should launch successfully even if it temporarily failed termination due to volume failing to unmount", f.WithNodeConformance(), f.WithSerial(), func(ctx context.Context) {
-			node := getNodeName(ctx, f)
+			node := GetNodeName(ctx, f)
 			ns = f.Namespace.Name
 			c := f.ClientSet
 			nfsTestConfig, nfsServerPod, nfsServerHost := e2evolume.NewNFSServerWithNodeName(ctx, c, ns, []string{"-G", "777", "/exports"}, node)
@@ -209,7 +210,7 @@ var _ = SIGDescribe("MirrorPod", func() {
 				e2evolume.TestServerCleanup(ctx, f, nfsTestConfig)
 			})
 
-			podPath = kubeletCfg.StaticPodPath
+			podPath = KubeletCfg.StaticPodPath
 			staticPodName = "static-pod-nfs-test-pod" + string(uuid.NewUUID())
 			mirrorPodName = staticPodName + "-" + framework.TestContext.NodeName
 

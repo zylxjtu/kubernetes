@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The Kubernetes Authors.
+Copyright 2025 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2enode
+package windows
 
 import (
 	"context"
@@ -29,7 +29,7 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/kubernetes/test/e2e/feature"
 	"k8s.io/kubernetes/test/e2e/framework"
-	. "k8s.io/kubernetes/test/e2e_node/utils"
+	"k8s.io/kubernetes/test/e2e_node/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 	admissionapi "k8s.io/pod-security-admission/api"
 
@@ -42,19 +42,18 @@ import (
 var _ = SIGDescribe(feature.StandaloneMode, func() {
 	f := framework.NewDefaultFramework("static-pod")
 	f.NamespacePodSecurityLevel = admissionapi.LevelBaseline
-	ginkgo.Context("when creating a static pod", func() {
+	ginkgo.Context("when creating a windows static pod", func() {
 		var ns, podPath, staticPodName string
 
 		ginkgo.It("the pod should be running", func(ctx context.Context) {
 			ns = f.Namespace.Name
 			staticPodName = "static-pod-" + string(uuid.NewUUID())
-			podPath = KubeletCfg.StaticPodPath
-
+			podPath = utils.KubeletCfg.StaticPodPath
 			err := createBasicStaticPod(podPath, staticPodName, ns)
 			framework.ExpectNoError(err)
 
 			gomega.Eventually(ctx, func(ctx context.Context) error {
-				pod, err := GetPodFromStandaloneKubelet(ctx, ns, staticPodName)
+				pod, err := utils.GetPodFromStandaloneKubelet(ctx, ns, staticPodName)
 				if err != nil {
 					return fmt.Errorf("error getting pod(%v/%v) from standalone kubelet: %v", ns, staticPodName, err)
 				}
@@ -72,12 +71,12 @@ var _ = SIGDescribe(feature.StandaloneMode, func() {
 
 		ginkgo.AfterEach(func(ctx context.Context) {
 			ginkgo.By(fmt.Sprintf("delete the static pod (%v/%v)", ns, staticPodName))
-			err := DeleteStaticPod(podPath, staticPodName, ns)
+			err := utils.DeleteStaticPod(podPath, staticPodName, ns)
 			framework.ExpectNoError(err)
 
 			ginkgo.By(fmt.Sprintf("wait for pod to disappear (%v/%v)", ns, staticPodName))
 			gomega.Eventually(ctx, func(ctx context.Context) error {
-				_, err := GetPodFromStandaloneKubelet(ctx, ns, staticPodName)
+				_, err := utils.GetPodFromStandaloneKubelet(ctx, ns, staticPodName)
 
 				if apierrors.IsNotFound(err) {
 					return nil
@@ -105,14 +104,17 @@ func createBasicStaticPod(dir, name, namespace string) error {
 					Name:  "regular1",
 					Image: imageutils.GetE2EImage(imageutils.BusyBox),
 					Command: []string{
-						"/bin/sh", "-c", "touch /tmp/healthy; sleep 10000",
+						// "/bin/sh", "-c", "touch /tmp/healthy; sleep 10000",
+						"powershell", "-c", "touch /tmp/healthy; sleep 10000",
 					},
 					Resources: v1.ResourceRequirements{
 						Requests: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("15Mi"),
+							// v1.ResourceMemory: resource.MustParse("15Mi"),
+							v1.ResourceMemory: resource.MustParse("100Mi"),
 						},
 						Limits: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("15Mi"),
+							// v1.ResourceMemory: resource.MustParse("15Mi"),
+							v1.ResourceMemory: resource.MustParse("100Mi"),
 						},
 					},
 					ReadinessProbe: &v1.Probe{
@@ -120,7 +122,8 @@ func createBasicStaticPod(dir, name, namespace string) error {
 						TimeoutSeconds:      2,
 						ProbeHandler: v1.ProbeHandler{
 							Exec: &v1.ExecAction{
-								Command: []string{"/bin/sh", "-c", "cat /tmp/healthy"},
+								// Command: []string{"/bin/sh", "-c", "cat /tmp/healthy"},
+								Command: []string{"powershell", "-c", "cat /tmp/healthy"},
 							},
 						},
 					},
@@ -129,7 +132,7 @@ func createBasicStaticPod(dir, name, namespace string) error {
 		},
 	}
 
-	file := StaticPodPath(dir, name, namespace)
+	file := utils.StaticPodPath(dir, name, namespace)
 	f, err := os.OpenFile(file, os.O_RDWR|os.O_TRUNC|os.O_CREATE, 0666)
 	if err != nil {
 		return err

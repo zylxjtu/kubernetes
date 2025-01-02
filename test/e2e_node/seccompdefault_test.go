@@ -33,6 +33,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/feature"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2eoutput "k8s.io/kubernetes/test/e2e/framework/pod/output"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 )
 
 // SeccompProcStatusField is the field of /proc/$PID/status referencing the seccomp filter type.
@@ -47,7 +48,7 @@ var _ = SIGDescribe("SeccompDefault", framework.WithSerial(), feature.SeccompDef
 	f.NamespacePodSecurityLevel = admissionapi.LevelPrivileged
 
 	ginkgo.Context("with SeccompDefault enabled", func() {
-		tempSetCurrentKubeletConfig(f, func(ctx context.Context, cfg *kubeletconfig.KubeletConfiguration) {
+		TempSetCurrentKubeletConfig(f, func(ctx context.Context, cfg *kubeletconfig.KubeletConfiguration) {
 			cfg.SeccompDefault = true
 		})
 
@@ -60,7 +61,7 @@ var _ = SIGDescribe("SeccompDefault", framework.WithSerial(), feature.SeccompDef
 					Containers: []v1.Container{
 						{
 							Name:            name,
-							Image:           busyboxImage,
+							Image:           BusyboxImage,
 							Command:         []string{"grep", SeccompProcStatusField, ProcSelfStatusPath},
 							SecurityContext: securityContext,
 						},

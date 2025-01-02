@@ -30,6 +30,7 @@ import (
 
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 )
 
 var _ = SIGDescribe("Terminate Pods", func() {
@@ -45,7 +46,7 @@ var _ = SIGDescribe("Terminate Pods", func() {
 				Containers: []v1.Container{
 					{
 						Name:  "container1",
-						Image: busyboxImage,
+						Image: BusyboxImage,
 						VolumeMounts: []v1.VolumeMount{
 							{
 								Name:      "vol1",

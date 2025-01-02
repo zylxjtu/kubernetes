@@ -38,6 +38,7 @@ import (
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2etestfiles "k8s.io/kubernetes/test/e2e/framework/testfiles"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	testutils "k8s.io/kubernetes/test/utils"
 
 	"github.com/onsi/ginkgo/v2"
@@ -194,10 +195,10 @@ var _ = SIGDescribe("Device Manager", framework.WithSerial(), nodefeature.Device
 			framework.Logf("pod %s/%s running", testPod.Namespace, testPod.Name)
 
 			ginkgo.By("stopping the kubelet")
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := MustStopKubelet(ctx, f)
 
 			ginkgo.By("stopping all the local containers - using CRI")
-			rs, _, err := getCRIClient()
+			rs, _, err := GetCRIClient()
 			framework.ExpectNoError(err)
 			sandboxes, err := rs.ListPodSandbox(ctx, &runtimeapi.PodSandboxFilter{})
 			framework.ExpectNoError(err)
@@ -301,7 +302,7 @@ func makeBusyboxDeviceRequiringPod(resourceName, cmd string) *v1.Pod {
 		Spec: v1.PodSpec{
 			RestartPolicy: v1.RestartPolicyNever,
 			Containers: []v1.Container{{
-				Image: busyboxImage,
+				Image: BusyboxImage,
 				Name:  podName,
 				// Runs the specified command in the test pod.
 				Command: []string{"sh", "-c", cmd},
@@ -336,7 +337,7 @@ func BeInReadyPhase(isReady bool) types.GomegaMatcher {
 }
 
 func isNodeReadyWithSampleResources(ctx context.Context, f *framework.Framework) (bool, error) {
-	node, ready := getLocalTestNode(ctx, f)
+	node, ready := GetLocalTestNode(ctx, f)
 	if !ready {
 		return false, fmt.Errorf("expected node to be ready=%t", ready)
 	}
@@ -369,7 +370,7 @@ func hasAllocatable(hasAllocatable bool) types.GomegaMatcher {
 }
 
 func isNodeReadyWithAllocatableSampleResources(ctx context.Context, f *framework.Framework, devCount int64) (bool, error) {
-	node, ready := getLocalTestNode(ctx, f)
+	node, ready := GetLocalTestNode(ctx, f)
 	if !ready {
 		return false, fmt.Errorf("expected node to be ready=%t", ready)
 	}
@@ -385,7 +386,7 @@ func isNodeReadyWithAllocatableSampleResources(ctx context.Context, f *framework
 }
 
 func isNodeReadyWithoutSampleResources(ctx context.Context, f *framework.Framework) (bool, error) {
-	node, ready := getLocalTestNode(ctx, f)
+	node, ready := GetLocalTestNode(ctx, f)
 	if !ready {
 		return false, fmt.Errorf("expected node to be ready=%t", ready)
 	}

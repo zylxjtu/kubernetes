@@ -30,6 +30,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 	admissionapi "k8s.io/pod-security-admission/api"
 
@@ -126,7 +127,7 @@ var _ = SIGDescribe("Security Context", func() {
 		}
 		createAndWaitHostPidPod := func(ctx context.Context, podName string, hostPID bool) {
 			podClient.Create(ctx, makeHostPidPod(podName,
-				busyboxImage,
+				BusyboxImage,
 				[]string{"sh", "-c", "pidof nginx || true"},
 				hostPID,
 			))
@@ -286,7 +287,7 @@ var _ = SIGDescribe("Security Context", func() {
 		listListeningPortsCommand := []string{"sh", "-c", "netstat -ln"}
 		createAndWaitHostNetworkPod := func(ctx context.Context, podName string, hostNetwork bool) {
 			podClient.Create(ctx, makeHostNetworkPod(podName,
-				busyboxImage,
+				BusyboxImage,
 				listListeningPortsCommand,
 				hostNetwork,
 			))

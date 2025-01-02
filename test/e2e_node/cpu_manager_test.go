@@ -42,6 +42,7 @@ import (
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 )
 
 // Helper for makeCPUManagerPod().
@@ -59,7 +60,7 @@ func makeCPUManagerPod(podName string, ctnAttributes []ctnAttribute) *v1.Pod {
 		cpusetCmd := fmt.Sprintf("grep Cpus_allowed_list /proc/self/status | cut -f2 && sleep 1d")
 		ctn := v1.Container{
 			Name:  ctnAttr.ctnName,
-			Image: busyboxImage,
+			Image: BusyboxImage,
 			Resources: v1.ResourceRequirements{
 				Requests: v1.ResourceList{
 					v1.ResourceCPU:    resource.MustParse(ctnAttr.cpuRequest),
@@ -95,7 +96,7 @@ func makeCPUManagerInitContainersPod(podName string, ctnAttributes []ctnAttribut
 	for _, ctnAttr := range ctnAttributes {
 		ctn := v1.Container{
 			Name:  ctnAttr.ctnName,
-			Image: busyboxImage,
+			Image: BusyboxImage,
 			Resources: v1.ResourceRequirements{
 				Requests: v1.ResourceList{
 					v1.ResourceCPU:    resource.MustParse(ctnAttr.cpuRequest),
@@ -125,7 +126,7 @@ func makeCPUManagerInitContainersPod(podName string, ctnAttributes []ctnAttribut
 			Containers: []v1.Container{
 				{
 					Name:  "regular",
-					Image: busyboxImage,
+					Image: BusyboxImage,
 					Resources: v1.ResourceRequirements{
 						Requests: v1.ResourceList{
 							v1.ResourceCPU:    resource.MustParse("1000m"),
@@ -158,9 +159,9 @@ func deletePods(ctx context.Context, f *framework.Framework, podNames []string) 
 }
 
 func getLocalNodeCPUDetails(ctx context.Context, f *framework.Framework) (cpuCapVal int64, cpuAllocVal int64, cpuResVal int64) {
-	localNodeCap := getLocalNode(ctx, f).Status.Capacity
+	localNodeCap := GetLocalNode(ctx, f).Status.Capacity
 	cpuCap := localNodeCap[v1.ResourceCPU]
-	localNodeAlloc := getLocalNode(ctx, f).Status.Allocatable
+	localNodeAlloc := GetLocalNode(ctx, f).Status.Allocatable
 	cpuAlloc := localNodeAlloc[v1.ResourceCPU]
 	cpuRes := cpuCap.DeepCopy()
 	cpuRes.Sub(cpuAlloc)
@@ -172,7 +173,7 @@ func getLocalNodeCPUDetails(ctx context.Context, f *framework.Framework) (cpuCap
 }
 
 func waitForContainerRemoval(ctx context.Context, containerName, podName, podNS string) {
-	rs, _, err := getCRIClient()
+	rs, _, err := GetCRIClient()
 	framework.ExpectNoError(err)
 	gomega.Eventually(ctx, func(ctx context.Context) bool {
 		containers, err := rs.ListContainers(ctx, &runtimeapi.ContainerFilter{
@@ -306,7 +307,7 @@ func runGuPodTest(ctx context.Context, f *framework.Framework, cpuCount int) {
 
 	ginkgo.By("by deleting the pods and waiting for container removal")
 	deletePods(ctx, f, []string{pod.Name})
-	waitForAllContainerRemoval(ctx, pod.Name, pod.Namespace)
+	WaitForAllContainerRemoval(ctx, pod.Name, pod.Namespace)
 }
 
 func runNonGuPodTest(ctx context.Context, f *framework.Framework, cpuCap int64) {
@@ -390,7 +391,7 @@ func runAutomaticallyRemoveInactivePodsFromCPUManagerStateFile(ctx context.Conte
 	// we need to wait for all containers to really be gone so cpumanager reconcile loop will not rewrite the cpu_manager_state.
 	// this is in turn needed because we will have an unavoidable (in the current framework) race with the
 	// reconcile loop which will make our attempt to delete the state file and to restore the old config go haywire
-	waitForAllContainerRemoval(ctx, pod.Name, pod.Namespace)
+	WaitForAllContainerRemoval(ctx, pod.Name, pod.Namespace)
 
 }
 
@@ -626,7 +627,7 @@ func runCPUManagerTests(f *framework.Framework) {
 	ginkgo.BeforeEach(func(ctx context.Context) {
 		var err error
 		if oldCfg == nil {
-			oldCfg, err = getCurrentKubeletConfig(ctx)
+			oldCfg, err = GetCurrentKubeletConfig(ctx)
 			framework.ExpectNoError(err)
 		}
 	})
@@ -644,7 +645,7 @@ func runCPUManagerTests(f *framework.Framework) {
 			policyName:         string(cpumanager.PolicyStatic),
 			reservedSystemCPUs: cpuset.CPUSet{},
 		})
-		updateKubeletConfig(ctx, f, newCfg, true)
+		UpdateKubeletConfig(ctx, f, newCfg, true)
 
 		ginkgo.By("running a non-Gu pod")
 		runNonGuPodTest(ctx, f, cpuCap)
@@ -703,7 +704,7 @@ func runCPUManagerTests(f *framework.Framework) {
 				options:                 cpuPolicyOptions,
 			},
 		)
-		updateKubeletConfig(ctx, f, newCfg, true)
+		UpdateKubeletConfig(ctx, f, newCfg, true)
 
 		// the order between negative and positive doesn't really matter
 		runSMTAlignmentNegativeTests(ctx, f)
@@ -723,7 +724,7 @@ func runCPUManagerTests(f *framework.Framework) {
 			policyName:         string(cpumanager.PolicyStatic),
 			reservedSystemCPUs: cpuset.CPUSet{},
 		})
-		updateKubeletConfig(ctx, f, newCfg, true)
+		UpdateKubeletConfig(ctx, f, newCfg, true)
 
 		ginkgo.By("running a Gu pod with a regular init container and a restartable init container")
 		ctrAttrs := []ctnAttribute{
@@ -781,7 +782,7 @@ func runCPUManagerTests(f *framework.Framework) {
 	})
 
 	ginkgo.AfterEach(func(ctx context.Context) {
-		updateKubeletConfig(ctx, f, oldCfg, true)
+		UpdateKubeletConfig(ctx, f, oldCfg, true)
 	})
 }
 
@@ -819,7 +820,7 @@ func runSMTAlignmentNegativeTests(ctx context.Context, f *framework.Framework) {
 	// we need to wait for all containers to really be gone so cpumanager reconcile loop will not rewrite the cpu_manager_state.
 	// this is in turn needed because we will have an unavoidable (in the current framework) race with th
 	// reconcile loop which will make our attempt to delete the state file and to restore the old config go haywire
-	waitForAllContainerRemoval(ctx, pod.Name, pod.Namespace)
+	WaitForAllContainerRemoval(ctx, pod.Name, pod.Namespace)
 }
 
 func runSMTAlignmentPositiveTests(ctx context.Context, f *framework.Framework, smtLevel int) {
@@ -855,7 +856,7 @@ func runSMTAlignmentPositiveTests(ctx context.Context, f *framework.Framework, s
 	// we need to wait for all containers to really be gone so cpumanager reconcile loop will not rewrite the cpu_manager_state.
 	// this is in turn needed because we will have an unavoidable (in the current framework) race with th
 	// reconcile loop which will make our attempt to delete the state file and to restore the old config go haywire
-	waitForAllContainerRemoval(ctx, pod.Name, pod.Namespace)
+	WaitForAllContainerRemoval(ctx, pod.Name, pod.Namespace)
 }
 
 func validateSMTAlignment(cpus cpuset.CPUSet, smtLevel int, pod *v1.Pod, cnt *v1.Container) {

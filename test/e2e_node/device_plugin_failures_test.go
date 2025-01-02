@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/kubernetes/test/e2e/framework"
 	"k8s.io/kubernetes/test/e2e_node/testdeviceplugin"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 )
 
 var _ = SIGDescribe("Device Plugin Failures:", framework.WithNodeConformance(), func() {
@@ -47,7 +48,7 @@ var _ = SIGDescribe("Device Plugin Failures:", framework.WithNodeConformance(), 
 
 	var getNodeResourceValues = func(ctx context.Context, resourceName string) ResourceValue {
 		ginkgo.GinkgoHelper()
-		node := getLocalNode(ctx, f)
+		node := GetLocalNode(ctx, f)
 
 		// -1 represents that the resource is not found
 		result := ResourceValue{
@@ -82,7 +83,7 @@ var _ = SIGDescribe("Device Plugin Failures:", framework.WithNodeConformance(), 
 			Spec: v1.PodSpec{
 				RestartPolicy: v1.RestartPolicyAlways,
 				Containers: []v1.Container{{
-					Image:   busyboxImage,
+					Image:   BusyboxImage,
 					Name:    "container-1",
 					Command: []string{"sh", "-c", fmt.Sprintf("env && sleep %s", sleepIntervalForever)},
 					Resources: v1.ResourceRequirements{

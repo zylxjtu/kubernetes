@@ -17,7 +17,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2enode
+package utils
 
 import (
 	"path/filepath"
@@ -61,7 +61,7 @@ const (
 //
 // This issue can be hit regardless of the means used to count storage.
 // It is not present in ext4fs.
-func isXfs(dir string) bool {
+func IsXfs(dir string) bool {
 	mountpoint := detectMountpoint(mount.New(""), dir)
 	if mountpoint == "" {
 		return false

@@ -38,6 +38,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/feature"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 )
 
@@ -50,13 +51,13 @@ var _ = SIGDescribe("Container Restart", feature.CriProxy, framework.WithSerial(
 	ginkgo.Context("Container restart backs off", func() {
 
 		ginkgo.BeforeEach(func() {
-			if err := resetCRIProxyInjector(e2eCriProxy); err != nil {
+			if err := ResetCRIProxyInjector(e2eCriProxy); err != nil {
 				ginkgo.Skip("Skip the test since the CRI Proxy is undefined.")
 			}
 		})
 
 		ginkgo.AfterEach(func() {
-			err := resetCRIProxyInjector(e2eCriProxy)
+			err := ResetCRIProxyInjector(e2eCriProxy)
 			framework.ExpectNoError(err)
 		})
 
@@ -68,19 +69,19 @@ var _ = SIGDescribe("Container Restart", feature.CriProxy, framework.WithSerial(
 
 	ginkgo.Context("Alternate container restart backs off as expected", func() {
 
-		tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+		TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
 			initialConfig.CrashLoopBackOff.MaxContainerRestartPeriod = &metav1.Duration{Duration: time.Duration(30 * time.Second)}
 			initialConfig.FeatureGates = map[string]bool{"KubeletCrashLoopBackOffMax": true}
 		})
 
 		ginkgo.BeforeEach(func() {
-			if err := resetCRIProxyInjector(e2eCriProxy); err != nil {
+			if err := ResetCRIProxyInjector(e2eCriProxy); err != nil {
 				ginkgo.Skip("Skip the test since the CRI Proxy is undefined.")
 			}
 		})
 
 		ginkgo.AfterEach(func() {
-			err := resetCRIProxyInjector(e2eCriProxy)
+			err := ResetCRIProxyInjector(e2eCriProxy)
 			framework.ExpectNoError(err)
 		})
 

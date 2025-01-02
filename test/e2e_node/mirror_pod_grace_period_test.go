@@ -34,6 +34,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 	admissionapi "k8s.io/pod-security-admission/api"
 )
@@ -48,7 +49,7 @@ var _ = SIGDescribe("MirrorPodWithGracePeriod", func() {
 			staticPodName = "graceful-pod-" + string(uuid.NewUUID())
 			mirrorPodName = staticPodName + "-" + framework.TestContext.NodeName
 
-			podPath = kubeletCfg.StaticPodPath
+			podPath = KubeletCfg.StaticPodPath
 
 			ginkgo.By("create the static pod")
 			err := createStaticPodWithGracePeriod(podPath, staticPodName, ns)
@@ -203,12 +204,12 @@ var _ = SIGDescribe("MirrorPodWithGracePeriod", func() {
 				time.Sleep(2 * time.Second)
 
 				ginkgo.By("stop the container runtime")
-				err = stopContainerRuntime()
+				err = StopContainerRuntime()
 				framework.ExpectNoError(err, "expected no error stopping the container runtime")
 
 				ginkgo.By("waiting for the container runtime to be stopped")
 				gomega.Eventually(ctx, func(ctx context.Context) error {
-					_, _, err := getCRIClient()
+					_, _, err := GetCRIClient()
 					return err
 				}, 2*time.Minute, time.Second*5).ShouldNot(gomega.Succeed())
 
@@ -252,11 +253,11 @@ var _ = SIGDescribe("MirrorPodWithGracePeriod", func() {
 					})}))
 
 				ginkgo.By("start the container runtime")
-				err = startContainerRuntime()
+				err = StartContainerRuntime()
 				framework.ExpectNoError(err, "expected no error starting the container runtime")
 				ginkgo.By("waiting for the container runtime to start")
 				gomega.Eventually(ctx, func(ctx context.Context) error {
-					r, _, err := getCRIClient()
+					r, _, err := GetCRIClient()
 					if err != nil {
 						return fmt.Errorf("error getting CRI client: %w", err)
 					}
@@ -314,11 +315,11 @@ var _ = SIGDescribe("MirrorPodWithGracePeriod", func() {
 
 			ginkgo.AfterEach(func(ctx context.Context) {
 				ginkgo.By("starting the container runtime")
-				err := startContainerRuntime()
+				err := StartContainerRuntime()
 				framework.ExpectNoError(err, "expected no error starting the container runtime")
 				ginkgo.By("waiting for the container runtime to start")
 				gomega.Eventually(ctx, func(ctx context.Context) error {
-					_, _, err := getCRIClient()
+					_, _, err := GetCRIClient()
 					if err != nil {
 						return fmt.Errorf("error getting cri client: %v", err)
 					}

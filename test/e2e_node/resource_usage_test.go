@@ -31,6 +31,7 @@ import (
 	e2ekubelet "k8s.io/kubernetes/test/e2e/framework/kubelet"
 	e2eperf "k8s.io/kubernetes/test/e2e/framework/perf"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 	admissionapi "k8s.io/pod-security-admission/api"
 
@@ -57,7 +58,7 @@ var _ = SIGDescribe("Resource-usage", framework.WithSerial(), framework.WithSlow
 		// The Cadvsior of Kubelet has a housekeeping interval of 10s, which is too long to
 		// show the resource usage spikes. But changing its interval increases the overhead
 		// of kubelet. Hence we use a Cadvisor pod.
-		e2epod.NewPodClient(f).CreateSync(ctx, getCadvisorPod())
+		e2epod.NewPodClient(f).CreateSync(ctx, GetCadvisorPod())
 		rc = NewResourceCollector(containerStatsPollingPeriod)
 	})
 
@@ -88,7 +89,7 @@ var _ = SIGDescribe("Resource-usage", framework.WithSerial(), framework.WithSlow
 			itArg := testArg
 			desc := fmt.Sprintf("resource tracking for %d pods per node", itArg.podsNr)
 			ginkgo.It(desc, func(ctx context.Context) {
-				testInfo := getTestNodeInfo(f, itArg.getTestName(), desc)
+				testInfo := GetTestNodeInfo(f, itArg.getTestName(), desc)
 
 				runResourceUsageTest(ctx, f, rc, itArg)
 
@@ -118,7 +119,7 @@ var _ = SIGDescribe("Resource-usage", framework.WithSerial(), framework.WithSlow
 			itArg := testArg
 			desc := fmt.Sprintf("resource tracking for %d pods per node [Benchmark]", itArg.podsNr)
 			ginkgo.It(desc, func(ctx context.Context) {
-				testInfo := getTestNodeInfo(f, itArg.getTestName(), desc)
+				testInfo := GetTestNodeInfo(f, itArg.getTestName(), desc)
 
 				runResourceUsageTest(ctx, f, rc, itArg)
 
@@ -149,11 +150,11 @@ func runResourceUsageTest(ctx context.Context, f *framework.Framework, rc *Resou
 		// sleep for an interval here to measure steady data
 		sleepAfterCreatePods = 10 * time.Second
 	)
-	pods := newTestPods(testArg.podsNr, true, imageutils.GetPauseImageName(), "test_pod")
+	pods := NewTestPods(testArg.podsNr, true, imageutils.GetPauseImageName(), "test_pod")
 
 	rc.Start()
 	// Explicitly delete pods to prevent namespace controller cleanning up timeout
-	ginkgo.DeferCleanup(deletePodsSync, f, append(pods, getCadvisorPod()))
+	ginkgo.DeferCleanup(DeletePodsSync, f, append(pods, GetCadvisorPod()))
 	ginkgo.DeferCleanup(rc.Stop)
 
 	ginkgo.By("Creating a batch of Pods")
@@ -196,21 +197,21 @@ func logAndVerifyResource(ctx context.Context, f *framework.Framework, rc *Resou
 	// Obtain memory PerfData
 	usagePerContainer, err := rc.GetLatest()
 	framework.ExpectNoError(err)
-	framework.Logf("%s", formatResourceUsageStats(usagePerContainer))
+	framework.Logf("%s", FormatResourceUsageStats(usagePerContainer))
 
 	usagePerNode := make(e2ekubelet.ResourceUsagePerNode)
 	usagePerNode[nodeName] = usagePerContainer
 
 	// Obtain CPU PerfData
 	cpuSummary := rc.GetCPUSummary()
-	framework.Logf("%s", formatCPUSummary(cpuSummary))
+	framework.Logf("%s", FormatCPUSummary(cpuSummary))
 
 	cpuSummaryPerNode := make(e2ekubelet.NodesCPUSummary)
 	cpuSummaryPerNode[nodeName] = cpuSummary
 
 	// Print resource usage
-	logPerfData(e2eperf.ResourceUsageToPerfDataWithLabels(usagePerNode, testInfo), "memory")
-	logPerfData(e2eperf.CPUUsageToPerfDataWithLabels(cpuSummaryPerNode, testInfo), "cpu")
+	LogPerfData(e2eperf.ResourceUsageToPerfDataWithLabels(usagePerNode, testInfo), "memory")
+	LogPerfData(e2eperf.CPUUsageToPerfDataWithLabels(cpuSummaryPerNode, testInfo), "cpu")
 
 	// Verify resource usage
 	if isVerify {

@@ -55,6 +55,7 @@ import (
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2etestfiles "k8s.io/kubernetes/test/e2e/framework/testfiles"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 )
 
 var (
@@ -107,7 +108,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 
 	var getNodeResourceValues = func(ctx context.Context, resourceName string) ResourceValue {
 		ginkgo.GinkgoHelper()
-		node := getLocalNode(ctx, f)
+		node := GetLocalNode(ctx, f)
 
 		// -1 represents that the resource is not found
 		result := ResourceValue{
@@ -154,12 +155,12 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			// This is done in a gomega.Eventually with retries since a prior test in a different test suite could've run and the deletion of it's resources may still be in progress.
 			// xref: https://issue.k8s.io/115381
 			gomega.Eventually(ctx, func(ctx context.Context) error {
-				v1alphaPodResources, err = getV1alpha1NodeDevices(ctx)
+				v1alphaPodResources, err = GetV1alpha1NodeDevices(ctx)
 				if err != nil {
 					return fmt.Errorf("failed to get node local podresources by accessing the (v1alpha) podresources API endpoint: %v", err)
 				}
 
-				v1PodResources, err = getV1NodeDevices(ctx)
+				v1PodResources, err = GetV1NodeDevices(ctx)
 				if err != nil {
 					return fmt.Errorf("failed to get node local podresources by accessing the (v1) podresources API endpoint: %v", err)
 				}
@@ -181,14 +182,14 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 
 			ginkgo.By("Waiting for devices to become available on the local node")
 			gomega.Eventually(ctx, func(ctx context.Context) bool {
-				node, ready := getLocalTestNode(ctx, f)
+				node, ready := GetLocalTestNode(ctx, f)
 				return ready && CountSampleDeviceCapacity(node) > 0
 			}, 5*time.Minute, framework.Poll).Should(gomega.BeTrueBecause("expected devices to be available on local node"))
 			framework.Logf("Successfully created device plugin pod")
 
 			ginkgo.By(fmt.Sprintf("Waiting for the resource exported by the sample device plugin to become available on the local node (instances: %d)", expectedSampleDevsAmount))
 			gomega.Eventually(ctx, func(ctx context.Context) bool {
-				node, ready := getLocalTestNode(ctx, f)
+				node, ready := GetLocalTestNode(ctx, f)
 				return ready &&
 					CountSampleDeviceCapacity(node) == expectedSampleDevsAmount &&
 					CountSampleDeviceAllocatable(node) == expectedSampleDevsAmount
@@ -211,11 +212,11 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 				e2epod.NewPodClient(f).DeleteSync(ctx, p.Name, metav1.DeleteOptions{}, 2*time.Minute)
 			}
 
-			restartKubelet(ctx, true)
+			RestartKubelet(ctx, true)
 
 			ginkgo.By("Waiting for devices to become unavailable on the local node")
 			gomega.Eventually(ctx, func(ctx context.Context) bool {
-				node, ready := getLocalTestNode(ctx, f)
+				node, ready := GetLocalTestNode(ctx, f)
 				return ready && CountSampleDeviceCapacity(node) <= 0
 			}, 5*time.Minute, framework.Poll).Should(gomega.BeTrueBecause("expected devices to be unavailable on local node"))
 
@@ -230,10 +231,10 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			framework.ExpectNoError(err, "getting logs for pod %q", pod1.Name)
 			gomega.Expect(devID1).To(gomega.Not(gomega.Equal("")), "pod1 requested a device but started successfully without")
 
-			v1alphaPodResources, err = getV1alpha1NodeDevices(ctx)
+			v1alphaPodResources, err = GetV1alpha1NodeDevices(ctx)
 			framework.ExpectNoError(err)
 
-			v1PodResources, err = getV1NodeDevices(ctx)
+			v1PodResources, err = GetV1NodeDevices(ctx)
 			framework.ExpectNoError(err)
 
 			framework.Logf("v1alphaPodResources.PodResources:%+v\n", v1alphaPodResources.PodResources)
@@ -318,7 +319,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			// crosscheck from the device assignment is preserved and stable from perspective of the kubelet.
 			// needs to match the container perspective.
 			ginkgo.By("Verifying the device assignment after container restart using podresources API")
-			v1PodResources, err = getV1NodeDevices(ctx)
+			v1PodResources, err = GetV1NodeDevices(ctx)
 			if err != nil {
 				framework.ExpectNoError(err, "getting pod resources assignment after pod restart")
 			}
@@ -337,7 +338,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			gomega.Expect(devID2).To(gomega.Not(gomega.Equal("")), "pod2 requested a device but started successfully without")
 
 			ginkgo.By("Verifying the device assignment after extra container start using podresources API")
-			v1PodResources, err = getV1NodeDevices(ctx)
+			v1PodResources, err = GetV1NodeDevices(ctx)
 			if err != nil {
 				framework.ExpectNoError(err, "getting pod resources assignment after pod restart")
 			}
@@ -364,14 +365,14 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			framework.Logf("testing pod: pre-restart  UID=%s namespace=%s name=%s ready=%v", pod1.UID, pod1.Namespace, pod1.Name, podutils.IsPodReady(pod1))
 
 			ginkgo.By("Restarting Kubelet")
-			restartKubelet(ctx, true)
+			RestartKubelet(ctx, true)
 
 			ginkgo.By("Wait for node to be ready again")
 			e2enode.WaitForAllNodesSchedulable(ctx, f.ClientSet, 5*time.Minute)
 
 			ginkgo.By("Waiting for resource to become available on the local node after restart")
 			gomega.Eventually(ctx, func() bool {
-				node, ready := getLocalTestNode(ctx, f)
+				node, ready := GetLocalTestNode(ctx, f)
 				return ready &&
 					CountSampleDeviceCapacity(node) == expectedSampleDevsAmount &&
 					CountSampleDeviceAllocatable(node) == expectedSampleDevsAmount
@@ -394,7 +395,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			// is useless.
 			ginkgo.By("Verifying the device assignment after kubelet restart using podresources API")
 			gomega.Eventually(ctx, func() error {
-				v1PodResources, err = getV1NodeDevices(ctx)
+				v1PodResources, err = GetV1NodeDevices(ctx)
 				return err
 			}, 30*time.Second, framework.Poll).ShouldNot(gomega.HaveOccurred(), "cannot fetch the compute resource assignment after kubelet restart")
 
@@ -429,7 +430,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			gomega.Expect(devIDRestart1).To(gomega.Equal(devID1))
 
 			ginkgo.By("Restarting Kubelet")
-			restartKubelet(ctx, true)
+			RestartKubelet(ctx, true)
 
 			ginkgo.By("Wait for node to be ready again")
 			e2enode.WaitForAllNodesSchedulable(ctx, f.ClientSet, 5*time.Minute)
@@ -459,7 +460,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 
 			ginkgo.By("Verifying the device assignment after pod and kubelet restart using podresources API")
 			gomega.Eventually(ctx, func() error {
-				v1PodResources, err = getV1NodeDevices(ctx)
+				v1PodResources, err = GetV1NodeDevices(ctx)
 				return err
 			}, 30*time.Second, framework.Poll).ShouldNot(gomega.HaveOccurred(), "cannot fetch the compute resource assignment after kubelet restart")
 
@@ -498,7 +499,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			gomega.Eventually(getNodeResourceValues, devicePluginGracefulTimeout, f.Timeouts.Poll).WithContext(ctx).WithArguments(SampleDeviceResourceName).Should(gomega.Equal(ResourceValue{Allocatable: 0, Capacity: int(expectedSampleDevsAmount)}))
 
 			ginkgo.By("Restarting Kubelet")
-			restartKubelet(ctx, true)
+			RestartKubelet(ctx, true)
 
 			ginkgo.By("Wait for node to be ready again")
 			gomega.Expect(e2enode.WaitForAllNodesSchedulable(ctx, f.ClientSet, 5*time.Minute)).To(gomega.Succeed())
@@ -549,7 +550,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 
 			ginkgo.By("Waiting for resource to become available on the local node after re-registration")
 			gomega.Eventually(ctx, func() bool {
-				node, ready := getLocalTestNode(ctx, f)
+				node, ready := GetLocalTestNode(ctx, f)
 				return ready &&
 					CountSampleDeviceCapacity(node) == expectedSampleDevsAmount &&
 					CountSampleDeviceAllocatable(node) == expectedSampleDevsAmount
@@ -562,7 +563,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			// is useless.
 			ginkgo.By("Verifying the device assignment after device plugin restart using podresources API")
 			gomega.Eventually(ctx, func() error {
-				v1PodResources, err = getV1NodeDevices(ctx)
+				v1PodResources, err = GetV1NodeDevices(ctx)
 				return err
 			}, 30*time.Second, framework.Poll).ShouldNot(gomega.HaveOccurred(), "cannot fetch the compute resource assignment after kubelet restart")
 
@@ -586,7 +587,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			framework.ExpectNoError(err)
 
 			ginkgo.By("Restarting Kubelet")
-			restartKubelet(ctx, true)
+			RestartKubelet(ctx, true)
 
 			ginkgo.By("Wait for node to be ready again")
 			e2enode.WaitForAllNodesSchedulable(ctx, f.ClientSet, 5*time.Minute)
@@ -604,7 +605,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			// is useless.
 			ginkgo.By("Verifying the device assignment after kubelet restart using podresources API")
 			gomega.Eventually(ctx, func() error {
-				v1PodResources, err = getV1NodeDevices(ctx)
+				v1PodResources, err = GetV1NodeDevices(ctx)
 				return err
 			}, 30*time.Second, framework.Poll).ShouldNot(gomega.HaveOccurred(), "cannot fetch the compute resource assignment after kubelet restart")
 
@@ -624,7 +625,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 
 			ginkgo.By("Waiting for resource to become available on the local node after restart")
 			gomega.Eventually(ctx, func() bool {
-				node, ready := getLocalTestNode(ctx, f)
+				node, ready := GetLocalTestNode(ctx, f)
 				return ready &&
 					CountSampleDeviceCapacity(node) == expectedSampleDevsAmount &&
 					CountSampleDeviceAllocatable(node) == expectedSampleDevsAmount
@@ -651,12 +652,12 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 			framework.ExpectNoError(err)
 
 			ginkgo.By("stopping the kubelet")
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := MustStopKubelet(ctx, f)
 
 			// wait until the kubelet health check will fail
 			gomega.Eventually(ctx, func() bool {
-				ok := kubeletHealthCheck(kubeletHealthCheckURL)
-				framework.Logf("kubelet health check at %q value=%v", kubeletHealthCheckURL, ok)
+				ok := KubeletHealthCheck(KubeletHealthCheckURL)
+				framework.Logf("kubelet health check at %q value=%v", KubeletHealthCheckURL, ok)
 				return ok
 			}, f.Timeouts.PodStart, f.Timeouts.Poll).Should(gomega.BeFalseBecause("expected kubelet health check to be failed"))
 
@@ -669,8 +670,8 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 
 			// wait until the kubelet health check will succeed
 			gomega.Eventually(ctx, func() bool {
-				ok := kubeletHealthCheck(kubeletHealthCheckURL)
-				framework.Logf("kubelet health check at %q value=%v", kubeletHealthCheckURL, ok)
+				ok := KubeletHealthCheck(KubeletHealthCheckURL)
+				framework.Logf("kubelet health check at %q value=%v", KubeletHealthCheckURL, ok)
 				return ok
 			}, f.Timeouts.PodStart, f.Timeouts.Poll).Should(gomega.BeTrueBecause("expected kubelet to be in healthy state"))
 
@@ -681,11 +682,11 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 				return err
 			}, f.Timeouts.PodDelete, f.Timeouts.Poll).Should(gomega.BeNil())
 
-			waitForAllContainerRemoval(ctx, pod.Name, pod.Namespace)
+			WaitForAllContainerRemoval(ctx, pod.Name, pod.Namespace)
 
 			ginkgo.By("Verifying the device assignment after device plugin restart using podresources API")
 			gomega.Eventually(ctx, func() error {
-				v1PodResources, err = getV1NodeDevices(ctx)
+				v1PodResources, err = GetV1NodeDevices(ctx)
 				return err
 			}, 30*time.Second, framework.Poll).ShouldNot(gomega.HaveOccurred(), "cannot fetch the compute resource assignment after kubelet restart")
 			err, allocated := checkPodResourcesAssignment(v1PodResources, pod.Namespace, pod.Name, pod.Spec.Containers[0].Name, SampleDeviceResourceName, []string{})
@@ -704,7 +705,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 					RestartPolicy: v1.RestartPolicyAlways,
 					InitContainers: []v1.Container{
 						{
-							Image:   busyboxImage,
+							Image:   BusyboxImage,
 							Name:    "init-1",
 							Command: []string{"sh", "-c", fmt.Sprintf(podRECMD, sleepOneSecond)},
 							Resources: v1.ResourceRequirements{
@@ -713,7 +714,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 							},
 						},
 						{
-							Image:   busyboxImage,
+							Image:   BusyboxImage,
 							Name:    "restartable-init-2",
 							Command: []string{"sh", "-c", fmt.Sprintf(podRECMD, sleepIntervalForever)},
 							Resources: v1.ResourceRequirements{
@@ -724,7 +725,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 						},
 					},
 					Containers: []v1.Container{{
-						Image:   busyboxImage,
+						Image:   BusyboxImage,
 						Name:    "regular-1",
 						Command: []string{"sh", "-c", fmt.Sprintf(podRECMD, sleepIntervalForever)},
 						Resources: v1.ResourceRequirements{
@@ -754,7 +755,7 @@ func testDevicePlugin(f *framework.Framework, pluginSockDir string) {
 
 			gomega.Expect(devID3).NotTo(gomega.Equal(devID2), "pod1's restartable init container and regular container should not share the same device")
 
-			podResources, err := getV1NodeDevices(ctx)
+			podResources, err := GetV1NodeDevices(ctx)
 			framework.ExpectNoError(err)
 
 			framework.Logf("PodResources.PodResources:%+v\n", podResources.PodResources)
@@ -813,7 +814,7 @@ func testDevicePluginNodeReboot(f *framework.Framework, pluginSockDir string) {
 			// This is done in a gomega.Eventually with retries since a prior test in a different test suite could've run and the deletion of it's resources may still be in progress.
 			// xref: https://issue.k8s.io/115381
 			gomega.Eventually(ctx, func(ctx context.Context) error {
-				v1PodResources, err = getV1NodeDevices(ctx)
+				v1PodResources, err = GetV1NodeDevices(ctx)
 				if err != nil {
 					return fmt.Errorf("failed to get node local podresources by accessing the (v1) podresources API endpoint: %v", err)
 				}
@@ -885,14 +886,14 @@ func testDevicePluginNodeReboot(f *framework.Framework, pluginSockDir string) {
 
 			ginkgo.By("Waiting for devices to become available on the local node")
 			gomega.Eventually(ctx, func(ctx context.Context) bool {
-				node, ready := getLocalTestNode(ctx, f)
+				node, ready := GetLocalTestNode(ctx, f)
 				return ready && CountSampleDeviceCapacity(node) > 0
 			}, 5*time.Minute, framework.Poll).Should(gomega.BeTrueBecause("expected devices to be available on the local node"))
 			framework.Logf("Successfully created device plugin pod")
 
 			ginkgo.By(fmt.Sprintf("Waiting for the resource exported by the sample device plugin to become available on the local node (instances: %d)", expectedSampleDevsAmount))
 			gomega.Eventually(ctx, func(ctx context.Context) bool {
-				node, ready := getLocalTestNode(ctx, f)
+				node, ready := GetLocalTestNode(ctx, f)
 				return ready &&
 					CountSampleDeviceCapacity(node) == expectedSampleDevsAmount &&
 					CountSampleDeviceAllocatable(node) == expectedSampleDevsAmount
@@ -923,7 +924,7 @@ func testDevicePluginNodeReboot(f *framework.Framework, pluginSockDir string) {
 
 			ginkgo.By("Waiting for devices to become unavailable on the local node")
 			gomega.Eventually(ctx, func(ctx context.Context) bool {
-				node, ready := getLocalTestNode(ctx, f)
+				node, ready := GetLocalTestNode(ctx, f)
 				return ready && CountSampleDeviceCapacity(node) <= 0
 			}, 5*time.Minute, framework.Poll).Should(gomega.BeTrueBecause("expected devices to be unavailable on local node"))
 
@@ -946,10 +947,10 @@ func testDevicePluginNodeReboot(f *framework.Framework, pluginSockDir string) {
 			framework.ExpectNoError(err)
 
 			ginkgo.By("stopping the kubelet")
-			restartKubelet := mustStopKubelet(ctx, f)
+			restartKubelet := MustStopKubelet(ctx, f)
 
 			ginkgo.By("stopping all the local containers - using CRI")
-			rs, _, err := getCRIClient()
+			rs, _, err := GetCRIClient()
 			framework.ExpectNoError(err)
 			sandboxes, err := rs.ListPodSandbox(ctx, &runtimeapi.PodSandboxFilter{})
 			framework.ExpectNoError(err)
@@ -980,7 +981,7 @@ func testDevicePluginNodeReboot(f *framework.Framework, pluginSockDir string) {
 			// is useless.
 			ginkgo.By("Verifying the device assignment after kubelet restart using podresources API")
 			gomega.Eventually(ctx, func() error {
-				v1PodResources, err = getV1NodeDevices(ctx)
+				v1PodResources, err = GetV1NodeDevices(ctx)
 				return err
 			}, 30*time.Second, framework.Poll).ShouldNot(gomega.HaveOccurred(), "cannot fetch the compute resource assignment after kubelet restart")
 
@@ -1002,7 +1003,7 @@ func makeBusyboxPod(SampleDeviceResourceName, cmd string) *v1.Pod {
 		Spec: v1.PodSpec{
 			RestartPolicy: v1.RestartPolicyAlways,
 			Containers: []v1.Container{{
-				Image: busyboxImage,
+				Image: BusyboxImage,
 				Name:  podName,
 				// Runs the specified command in the test pod.
 				Command: []string{"sh", "-c", cmd},

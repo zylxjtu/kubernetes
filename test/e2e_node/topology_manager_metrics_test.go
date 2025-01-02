@@ -33,6 +33,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 )
 
@@ -48,7 +49,7 @@ var _ = SIGDescribe("Topology Manager Metrics", framework.WithSerial(), feature.
 		ginkgo.BeforeEach(func(ctx context.Context) {
 			var err error
 			if oldCfg == nil {
-				oldCfg, err = getCurrentKubeletConfig(ctx)
+				oldCfg, err = GetCurrentKubeletConfig(ctx)
 				framework.ExpectNoError(err)
 			}
 
@@ -68,7 +69,7 @@ var _ = SIGDescribe("Topology Manager Metrics", framework.WithSerial(), feature.
 			scope := podScopeTopology
 
 			newCfg, _ := configureTopologyManagerInKubelet(oldCfg, policy, scope, nil, nil, 0)
-			updateKubeletConfig(ctx, f, newCfg, true)
+			UpdateKubeletConfig(ctx, f, newCfg, true)
 
 		})
 
@@ -76,7 +77,7 @@ var _ = SIGDescribe("Topology Manager Metrics", framework.WithSerial(), feature.
 			if testPod != nil {
 				deletePodSyncByName(ctx, f, testPod.Name)
 			}
-			updateKubeletConfig(ctx, f, oldCfg, true)
+			UpdateKubeletConfig(ctx, f, oldCfg, true)
 		})
 
 		ginkgo.It("should report zero admission counters after a fresh restart", func(ctx context.Context) {

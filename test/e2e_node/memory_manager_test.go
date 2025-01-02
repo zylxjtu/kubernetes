@@ -42,6 +42,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/feature"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 	"k8s.io/utils/cpuset"
 	"k8s.io/utils/pointer"
@@ -73,7 +74,7 @@ func makeMemoryManagerContainers(ctnCmd string, ctnAttributes []memoryManagerCtn
 	for _, ctnAttr := range ctnAttributes {
 		ctn := v1.Container{
 			Name:  ctnAttr.ctnName,
-			Image: busyboxImage,
+			Image: BusyboxImage,
 			Resources: v1.ResourceRequirements{
 				Limits: v1.ResourceList{
 					v1.ResourceCPU:    resource.MustParse(ctnAttr.cpus),
@@ -139,13 +140,13 @@ func makeMemoryManagerPod(podName string, initCtnAttributes, ctnAttributes []mem
 }
 
 func getMemoryManagerState() (*state.MemoryManagerCheckpoint, error) {
-	if _, err := os.Stat(memoryManagerStateFile); os.IsNotExist(err) {
-		return nil, fmt.Errorf("the memory manager state file %s does not exist", memoryManagerStateFile)
+	if _, err := os.Stat(MemoryManagerStateFile); os.IsNotExist(err) {
+		return nil, fmt.Errorf("the memory manager state file %s does not exist", MemoryManagerStateFile)
 	}
 
-	out, err := exec.Command("/bin/sh", "-c", fmt.Sprintf("cat %s", memoryManagerStateFile)).Output()
+	out, err := exec.Command("/bin/sh", "-c", fmt.Sprintf("cat %s", MemoryManagerStateFile)).Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to run command 'cat %s': out: %s, err: %w", memoryManagerStateFile, out, err)
+		return nil, fmt.Errorf("failed to run command 'cat %s': out: %s, err: %w", MemoryManagerStateFile, out, err)
 	}
 
 	memoryManagerCheckpoint := &state.MemoryManagerCheckpoint{}
@@ -364,7 +365,7 @@ var _ = SIGDescribe("Memory Manager", framework.WithDisruptive(), framework.With
 	})
 
 	ginkgo.Context("with static policy", func() {
-		tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+		TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
 			kubeParams := *defaultKubeParams
 			kubeParams.policy = staticPolicy
 			updateKubeletConfigWithMemoryManagerParams(initialConfig, &kubeParams)
@@ -378,10 +379,10 @@ var _ = SIGDescribe("Memory Manager", framework.WithDisruptive(), framework.With
 
 		// TODO: move the test to pod resource API test suite, see - https://github.com/kubernetes/kubernetes/issues/101945
 		ginkgo.It("should report memory data during request to pod resources GetAllocatableResources", func(ctx context.Context) {
-			endpoint, err := util.LocalEndpoint(defaultPodResourcesPath, podresources.Socket)
+			endpoint, err := util.LocalEndpoint(DefaultPodResourcesPath, podresources.Socket)
 			framework.ExpectNoError(err)
 
-			cli, conn, err := podresources.GetV1Client(endpoint, defaultPodResourcesTimeout, defaultPodResourcesMaxSize)
+			cli, conn, err := podresources.GetV1Client(endpoint, DefaultPodResourcesTimeout, DefaultPodResourcesMaxSize)
 			framework.ExpectNoError(err)
 			defer conn.Close()
 
@@ -518,10 +519,10 @@ var _ = SIGDescribe("Memory Manager", framework.WithDisruptive(), framework.With
 				ginkgo.By("Running the test pod 2")
 				testPod2 = e2epod.NewPodClient(f).CreateSync(ctx, testPod2)
 
-				endpoint, err := util.LocalEndpoint(defaultPodResourcesPath, podresources.Socket)
+				endpoint, err := util.LocalEndpoint(DefaultPodResourcesPath, podresources.Socket)
 				framework.ExpectNoError(err)
 
-				cli, conn, err := podresources.GetV1Client(endpoint, defaultPodResourcesTimeout, defaultPodResourcesMaxSize)
+				cli, conn, err := podresources.GetV1Client(endpoint, DefaultPodResourcesTimeout, DefaultPodResourcesMaxSize)
 				framework.ExpectNoError(err)
 				defer conn.Close()
 
@@ -642,7 +643,7 @@ var _ = SIGDescribe("Memory Manager", framework.WithDisruptive(), framework.With
 	})
 
 	ginkgo.Context("with none policy", func() {
-		tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+		TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
 			kubeParams := *defaultKubeParams
 			kubeParams.policy = nonePolicy
 			updateKubeletConfigWithMemoryManagerParams(initialConfig, &kubeParams)
@@ -663,10 +664,10 @@ var _ = SIGDescribe("Memory Manager", framework.WithDisruptive(), framework.With
 
 			// TODO: move the test to pod resource API test suite, see - https://github.com/kubernetes/kubernetes/issues/101945
 			ginkgo.It("should not report any memory data during request to pod resources GetAllocatableResources", func(ctx context.Context) {
-				endpoint, err := util.LocalEndpoint(defaultPodResourcesPath, podresources.Socket)
+				endpoint, err := util.LocalEndpoint(DefaultPodResourcesPath, podresources.Socket)
 				framework.ExpectNoError(err)
 
-				cli, conn, err := podresources.GetV1Client(endpoint, defaultPodResourcesTimeout, defaultPodResourcesMaxSize)
+				cli, conn, err := podresources.GetV1Client(endpoint, DefaultPodResourcesTimeout, DefaultPodResourcesMaxSize)
 				framework.ExpectNoError(err)
 				defer conn.Close()
 
@@ -680,10 +681,10 @@ var _ = SIGDescribe("Memory Manager", framework.WithDisruptive(), framework.With
 			ginkgo.It("should not report any memory data during request to pod resources List", func(ctx context.Context) {
 				testPod = e2epod.NewPodClient(f).CreateSync(ctx, testPod)
 
-				endpoint, err := util.LocalEndpoint(defaultPodResourcesPath, podresources.Socket)
+				endpoint, err := util.LocalEndpoint(DefaultPodResourcesPath, podresources.Socket)
 				framework.ExpectNoError(err)
 
-				cli, conn, err := podresources.GetV1Client(endpoint, defaultPodResourcesTimeout, defaultPodResourcesMaxSize)
+				cli, conn, err := podresources.GetV1Client(endpoint, DefaultPodResourcesTimeout, DefaultPodResourcesMaxSize)
 				framework.ExpectNoError(err)
 				defer conn.Close()
 

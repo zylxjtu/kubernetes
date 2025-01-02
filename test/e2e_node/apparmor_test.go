@@ -40,6 +40,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/kuberuntime"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	"k8s.io/kubernetes/third_party/forked/libcontainer/apparmor"
 	admissionapi "k8s.io/pod-security-admission/api"
 
@@ -243,7 +244,7 @@ func createPodWithAppArmor(ctx context.Context, f *framework.Framework, profile 
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{{
 				Name:    "test",
-				Image:   busyboxImage,
+				Image:   BusyboxImage,
 				Command: []string{"touch", "foo"},
 			}},
 			RestartPolicy: v1.RestartPolicyNever,

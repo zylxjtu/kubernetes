@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 
 	"fmt"
@@ -53,7 +54,7 @@ var _ = SIGDescribe("Kubelet Volume Manager", func() {
 							RestartPolicy: v1.RestartPolicyNever,
 							Containers: []v1.Container{
 								{
-									Image:   busyboxImage,
+									Image:   BusyboxImage,
 									Name:    "container" + string(uuid.NewUUID()),
 									Command: []string{"sh", "-c", "echo"},
 									VolumeMounts: []v1.VolumeMount{
@@ -92,7 +93,7 @@ var _ = SIGDescribe("Kubelet Volume Manager", func() {
 								RestartPolicy: v1.RestartPolicyNever,
 								Containers: []v1.Container{
 									{
-										Image:   busyboxImage,
+										Image:   BusyboxImage,
 										Name:    "container" + string(uuid.NewUUID()),
 										Command: []string{"sh", "-c", "if [ -d " + volumePath + " ]; then exit 1; fi;"},
 										VolumeMounts: []v1.VolumeMount{

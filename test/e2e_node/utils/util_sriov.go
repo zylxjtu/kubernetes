@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2enode
+package utils
 
 import (
 	"k8s.io/kubernetes/test/e2e/framework"
@@ -32,8 +32,8 @@ const (
 	SRIOVDevicePluginName = "sriov-device-plugin"
 )
 
-func requireSRIOVDevices() {
-	sriovdevCount, err := countSRIOVDevices()
+func RequireSRIOVDevices() {
+	sriovdevCount, err := CountSRIOVDevices()
 	framework.ExpectNoError(err)
 
 	if sriovdevCount > 0 {

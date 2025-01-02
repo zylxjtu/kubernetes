@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2enode
+package utils
 
 import (
 	"context"
@@ -52,7 +52,7 @@ const (
 var NodePrePullImageList = sets.NewString(
 	imageutils.GetE2EImage(imageutils.Agnhost),
 	"gcr.io/cadvisor/cadvisor:v0.47.2",
-	busyboxImage,
+	BusyboxImage,
 	"registry.k8s.io/e2e-test-images/busybox@sha256:a9155b13325b2abef48e71de77bb8ac015412a566829f621d06bfae5c699b1b9",
 	imageutils.GetE2EImage(imageutils.Nginx),
 	imageutils.GetE2EImage(imageutils.Perl),
@@ -63,11 +63,11 @@ var NodePrePullImageList = sets.NewString(
 	imageutils.GetE2EImage(imageutils.Etcd),
 )
 
-// updateImageAllowList updates the e2epod.ImagePrePullList with
+// UpdateImageAllowList updates the e2epod.ImagePrePullList with
 // 1. the hard coded lists
 // 2. the ones passed in from framework.TestContext.ExtraEnvs
 // So this function needs to be called after the extra envs are applied.
-func updateImageAllowList(ctx context.Context) {
+func UpdateImageAllowList(ctx context.Context) {
 	// Architecture-specific image
 	if !isRunningOnArm64() {
 		// NodePerfTfWideDeep is only supported on x86_64, pulling in arm64 will fail
@@ -75,8 +75,9 @@ func updateImageAllowList(ctx context.Context) {
 	}
 	// Union NodePrePullImageList and PrePulledImages into the framework image pre-pull list.
 	e2epod.ImagePrePullList = NodePrePullImageList.Union(commontest.PrePulledImages)
+	e2epod.ImagePrePullList = NodePrePullImageList.Union(commontest.WindowsPrePulledImages)
 	// Images from extra envs
-	e2epod.ImagePrePullList.Insert(getNodeProblemDetectorImage())
+	e2epod.ImagePrePullList.Insert(GetNodeProblemDetectorImage())
 	if sriovDevicePluginImage, err := getSRIOVDevicePluginImage(); err != nil {
 		klog.Errorln(err)
 	} else {
@@ -98,7 +99,7 @@ func isRunningOnArm64() bool {
 	return runtime.GOARCH == "arm64"
 }
 
-func getNodeProblemDetectorImage() string {
+func GetNodeProblemDetectorImage() string {
 	const defaultImage string = "registry.k8s.io/node-problem-detector/node-problem-detector:v0.8.20"
 	image := os.Getenv("NODE_PROBLEM_DETECTOR_IMAGE")
 	if image == "" {
@@ -139,7 +140,7 @@ func (rp *remotePuller) Remove(ctx context.Context, image string) error {
 }
 
 func getPuller() (puller, error) {
-	_, is, err := getCRIClient()
+	_, is, err := GetCRIClient()
 	if err != nil {
 		return nil, err
 	}

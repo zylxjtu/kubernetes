@@ -27,6 +27,7 @@ import (
 	kubelogs "k8s.io/kubernetes/pkg/kubelet/logs"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 
 	"github.com/onsi/ginkgo/v2"
@@ -47,7 +48,7 @@ var _ = SIGDescribe("ContainerLogRotation", framework.WithSlow(), framework.With
 	f := framework.NewDefaultFramework("container-log-rotation-test")
 	f.NamespacePodSecurityLevel = admissionapi.LevelPrivileged
 	ginkgo.Context("when a container generates a lot of log", func() {
-		tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+		TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
 			initialConfig.ContainerLogMaxFiles = testContainerLogMaxFiles
 			initialConfig.ContainerLogMaxSize = testContainerLogMaxSize
 		})
@@ -64,7 +65,7 @@ var _ = SIGDescribe("ContainerLogRotation", framework.WithSlow(), framework.With
 					Containers: []v1.Container{
 						{
 							Name:  "log-container",
-							Image: busyboxImage,
+							Image: BusyboxImage,
 							Command: []string{
 								"sh",
 								"-c",
@@ -84,7 +85,7 @@ var _ = SIGDescribe("ContainerLogRotation", framework.WithSlow(), framework.With
 			ginkgo.By("get container log path")
 			gomega.Expect(logRotationPod.Status.ContainerStatuses).To(gomega.HaveLen(1), "log rotation pod should have one container")
 			id := kubecontainer.ParseContainerID(logRotationPod.Status.ContainerStatuses[0].ContainerID).ID
-			r, _, err := getCRIClient()
+			r, _, err := GetCRIClient()
 			framework.ExpectNoError(err, "should connect to CRI and obtain runtime service clients and image service client")
 			resp, err := r.ContainerStatus(context.Background(), id, false)
 			framework.ExpectNoError(err)
@@ -113,7 +114,7 @@ var _ = SIGDescribe("ContainerLogRotationWithMultipleWorkers", framework.WithSlo
 	f := framework.NewDefaultFramework("container-log-rotation-test-multi-worker")
 	f.NamespacePodSecurityLevel = admissionapi.LevelPrivileged
 	ginkgo.Context("when a container generates a lot of logs", func() {
-		tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+		TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
 			initialConfig.ContainerLogMaxFiles = testContainerLogMaxFiles
 			initialConfig.ContainerLogMaxSize = testContainerLogMaxSize
 			initialConfig.ContainerLogMaxWorkers = testContainerLogMaxWorkers
@@ -133,7 +134,7 @@ var _ = SIGDescribe("ContainerLogRotationWithMultipleWorkers", framework.WithSlo
 						Containers: []v1.Container{
 							{
 								Name:  "log-container",
-								Image: busyboxImage,
+								Image: BusyboxImage,
 								Command: []string{
 									"sh",
 									"-c",
@@ -156,7 +157,7 @@ var _ = SIGDescribe("ContainerLogRotationWithMultipleWorkers", framework.WithSlo
 			for _, pod := range logRotationPods {
 				gomega.Expect(pod.Status.ContainerStatuses).To(gomega.HaveLen(1), "log rotation pod should have one container")
 				id := kubecontainer.ParseContainerID(pod.Status.ContainerStatuses[0].ContainerID).ID
-				r, _, err := getCRIClient()
+				r, _, err := GetCRIClient()
 				framework.ExpectNoError(err, "should connect to CRI and obtain runtime service clients and image service client")
 				resp, err := r.ContainerStatus(context.Background(), id, false)
 				framework.ExpectNoError(err)

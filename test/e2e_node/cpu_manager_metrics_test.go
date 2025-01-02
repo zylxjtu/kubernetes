@@ -39,6 +39,7 @@ import (
 	e2emetrics "k8s.io/kubernetes/test/e2e/framework/metrics"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	admissionapi "k8s.io/pod-security-admission/api"
 	"k8s.io/utils/cpuset"
 )
@@ -55,7 +56,7 @@ var _ = SIGDescribe("CPU Manager Metrics", framework.WithSerial(), feature.CPUMa
 		ginkgo.BeforeEach(func(ctx context.Context) {
 			var err error
 			if oldCfg == nil {
-				oldCfg, err = getCurrentKubeletConfig(ctx)
+				oldCfg, err = GetCurrentKubeletConfig(ctx)
 				framework.ExpectNoError(err)
 			}
 
@@ -88,7 +89,7 @@ var _ = SIGDescribe("CPU Manager Metrics", framework.WithSerial(), feature.CPUMa
 					options:                 cpuPolicyOptions,
 				},
 			)
-			updateKubeletConfig(ctx, f, newCfg, true)
+			UpdateKubeletConfig(ctx, f, newCfg, true)
 		})
 
 		ginkgo.AfterEach(func(ctx context.Context) {
@@ -96,7 +97,7 @@ var _ = SIGDescribe("CPU Manager Metrics", framework.WithSerial(), feature.CPUMa
 				deletePodSyncByName(ctx, f, testPod.Name)
 				waitForContainerRemoval(ctx, testPod.Spec.Containers[0].Name, testPod.Name, testPod.Namespace)
 			}
-			updateKubeletConfig(ctx, f, oldCfg, true)
+			UpdateKubeletConfig(ctx, f, oldCfg, true)
 		})
 
 		ginkgo.It("should report zero pinning counters after a fresh restart", func(ctx context.Context) {
@@ -188,10 +189,10 @@ var _ = SIGDescribe("CPU Manager Metrics", framework.WithSerial(), feature.CPUMa
 
 		ginkgo.It("should report the default idle cpu pool size", func(ctx context.Context) {
 			ginkgo.By("Querying the podresources endpoint to get the baseline")
-			endpoint, err := util.LocalEndpoint(defaultPodResourcesPath, podresources.Socket)
+			endpoint, err := util.LocalEndpoint(DefaultPodResourcesPath, podresources.Socket)
 			framework.ExpectNoError(err, "LocalEndpoint() failed err: %v", err)
 
-			cli, conn, err := podresources.GetV1Client(endpoint, defaultPodResourcesTimeout, defaultPodResourcesMaxSize)
+			cli, conn, err := podresources.GetV1Client(endpoint, DefaultPodResourcesTimeout, DefaultPodResourcesMaxSize)
 			framework.ExpectNoError(err, "GetV1Client() failed err: %v", err)
 			defer func() {
 				framework.ExpectNoError(conn.Close())
@@ -219,10 +220,10 @@ var _ = SIGDescribe("CPU Manager Metrics", framework.WithSerial(), feature.CPUMa
 
 		ginkgo.It("should report mutating cpu pool size when handling guaranteed pods", func(ctx context.Context) {
 			ginkgo.By("Querying the podresources endpoint to get the baseline")
-			endpoint, err := util.LocalEndpoint(defaultPodResourcesPath, podresources.Socket)
+			endpoint, err := util.LocalEndpoint(DefaultPodResourcesPath, podresources.Socket)
 			framework.ExpectNoError(err, "LocalEndpoint() failed err: %v", err)
 
-			cli, conn, err := podresources.GetV1Client(endpoint, defaultPodResourcesTimeout, defaultPodResourcesMaxSize)
+			cli, conn, err := podresources.GetV1Client(endpoint, DefaultPodResourcesTimeout, DefaultPodResourcesMaxSize)
 			framework.ExpectNoError(err, "GetV1Client() failed err: %v", err)
 			defer func() {
 				framework.ExpectNoError(conn.Close())
@@ -279,7 +280,7 @@ var _ = SIGDescribe("CPU Manager Metrics", framework.WithSerial(), feature.CPUMa
 
 func getKubeletMetrics(ctx context.Context) (e2emetrics.KubeletMetrics, error) {
 	ginkgo.By("Getting Kubelet metrics from the metrics API")
-	return e2emetrics.GrabKubeletMetricsWithoutProxy(ctx, nodeNameOrIP()+":10255", "/metrics")
+	return e2emetrics.GrabKubeletMetricsWithoutProxy(ctx, NodeNameOrIP()+":10255", "/metrics")
 }
 
 func makeGuaranteedCPUExclusiveSleeperPod(name string, cpus int) *v1.Pod {
@@ -292,7 +293,7 @@ func makeGuaranteedCPUExclusiveSleeperPod(name string, cpus int) *v1.Pod {
 			Containers: []v1.Container{
 				{
 					Name:  name + "-cnt",
-					Image: busyboxImage,
+					Image: BusyboxImage,
 					Resources: v1.ResourceRequirements{
 						Requests: v1.ResourceList{
 							v1.ResourceCPU:    resource.MustParse(fmt.Sprintf("%d", cpus)),

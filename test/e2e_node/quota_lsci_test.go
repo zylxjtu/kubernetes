@@ -32,6 +32,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 	"k8s.io/mount-utils"
 	admissionapi "k8s.io/pod-security-admission/api"
@@ -51,7 +52,7 @@ func runOneQuotaTest(f *framework.Framework, quotasRequested bool, userNamespace
 	// TODO: remove hardcoded kubelet volume directory path
 	// framework.TestContext.KubeVolumeDir is currently not populated for node e2e
 	// As for why we do this: see comment below at isXfs.
-	if isXfs("/var/lib/kubelet") {
+	if IsXfs("/var/lib/kubelet") {
 		useUnderLimit = 50 /* Mb */
 	}
 	priority := 0
@@ -59,8 +60,8 @@ func runOneQuotaTest(f *framework.Framework, quotasRequested bool, userNamespace
 		priority = 1
 	}
 	ginkgo.Context(fmt.Sprintf(testContextFmt, fmt.Sprintf("use quotas for LSCI monitoring (quotas enabled: %v)", quotasRequested)), func() {
-		tempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
-			defer withFeatureGate(LSCIQuotaFeature, quotasRequested)()
+		TempSetCurrentKubeletConfig(f, func(ctx context.Context, initialConfig *kubeletconfig.KubeletConfiguration) {
+			defer WithFeatureGate(LSCIQuotaFeature, quotasRequested)()
 			// TODO: remove hardcoded kubelet volume directory path
 			// framework.TestContext.KubeVolumeDir is currently not populated for node e2e
 			if !supportsUserNS(ctx, f) {
@@ -107,7 +108,7 @@ var _ = SIGDescribe("LocalStorageCapacityIsolationFSQuotaMonitoring", framework.
 	runOneQuotaTest(f, true, true)
 	runOneQuotaTest(f, true, false)
 	runOneQuotaTest(f, false, true)
-	addAfterEachForCleaningUpPods(f)
+	AddAfterEachForCleaningUpPods(f)
 })
 
 const (

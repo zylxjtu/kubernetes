@@ -37,6 +37,7 @@ import (
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	"k8s.io/kubernetes/test/e2e/nodefeature"
+	. "k8s.io/kubernetes/test/e2e_node/utils"
 	imageutils "k8s.io/kubernetes/test/utils/image"
 	admissionapi "k8s.io/pod-security-admission/api"
 
@@ -79,7 +80,7 @@ func validateOOMScoreAdjSettingIsInRange(pid int, expectedMinOOMScoreAdj, expect
 }
 
 func dumpRunningContainer(ctx context.Context) error {
-	runtime, _, err := getCRIClient()
+	runtime, _, err := GetCRIClient()
 	if err != nil {
 		return err
 	}
@@ -104,7 +105,7 @@ var _ = SIGDescribe("Container Manager Misc", framework.WithSerial(), func() {
 	f.Describe("Validate OOM score adjustments", nodefeature.OOMScoreAdj, func() {
 		ginkgo.Context("once the node is setup", func() {
 			ginkgo.It("container runtime's oom-score-adj should be -999", func(ctx context.Context) {
-				runtimePids, err := getPidsForProcess(framework.TestContext.ContainerRuntimeProcessName, framework.TestContext.ContainerRuntimePidFile)
+				runtimePids, err := GetPidsForProcess(framework.TestContext.ContainerRuntimeProcessName, framework.TestContext.ContainerRuntimePidFile)
 				framework.ExpectNoError(err, "failed to get list of container runtime pids")
 				for _, pid := range runtimePids {
 					gomega.Eventually(ctx, func() error {
@@ -113,7 +114,7 @@ var _ = SIGDescribe("Container Manager Misc", framework.WithSerial(), func() {
 				}
 			})
 			ginkgo.It("Kubelet's oom-score-adj should be -999", func(ctx context.Context) {
-				kubeletPids, err := getPidsForProcess(kubeletProcessName, "")
+				kubeletPids, err := GetPidsForProcess(KubeletProcessName, "")
 				framework.ExpectNoError(err, "failed to get list of kubelet pids")
 				gomega.Expect(kubeletPids).To(gomega.HaveLen(1), "expected only one kubelet process; found %d", len(kubeletPids))
 				gomega.Eventually(ctx, func() error {
@@ -135,14 +136,14 @@ var _ = SIGDescribe("Container Manager Misc", framework.WithSerial(), func() {
 						return // nothing to do
 					}
 					deletePodSyncByName(ctx, f, testPod.Name)
-					waitForAllContainerRemoval(ctx, testPod.Name, testPod.Namespace)
+					WaitForAllContainerRemoval(ctx, testPod.Name, testPod.Namespace)
 				})
 
 				ginkgo.It("pod infra containers oom-score-adj should be -998 and best effort container's should be 1000", func(ctx context.Context) {
 					// Take a snapshot of existing pause processes. These were
 					// created before this test, and may not be infra
 					// containers. They should be excluded from the test.
-					existingPausePIDs, err := getPidsForProcess("pause", "")
+					existingPausePIDs, err := GetPidsForProcess("pause", "")
 					framework.ExpectNoError(err, "failed to list all pause processes on the node")
 					existingPausePIDSet := sets.NewInt(existingPausePIDs...)
 
@@ -165,7 +166,7 @@ var _ = SIGDescribe("Container Manager Misc", framework.WithSerial(), func() {
 					var pausePids []int
 					ginkgo.By("checking infra container's oom-score-adj")
 					gomega.Eventually(ctx, func() error {
-						pausePids, err = getPidsForProcess("pause", "")
+						pausePids, err = GetPidsForProcess("pause", "")
 						if err != nil {
 							return fmt.Errorf("failed to get list of pause pids: %w", err)
 						}
@@ -183,7 +184,7 @@ var _ = SIGDescribe("Container Manager Misc", framework.WithSerial(), func() {
 					var shPids []int
 					ginkgo.By("checking besteffort container's oom-score-adj")
 					gomega.Eventually(ctx, func() error {
-						shPids, err = getPidsForProcess("agnhost", "")
+						shPids, err = GetPidsForProcess("agnhost", "")
 						if err != nil {
 							return fmt.Errorf("failed to get list of serve hostname process pids: %w", err)
 						}
@@ -221,7 +222,7 @@ var _ = SIGDescribe("Container Manager Misc", framework.WithSerial(), func() {
 						err    error
 					)
 					gomega.Eventually(ctx, func() error {
-						ngPids, err = getPidsForProcess("nginx", "")
+						ngPids, err = GetPidsForProcess("nginx", "")
 						if err != nil {
 							return fmt.Errorf("failed to get list of nginx process pids: %w", err)
 						}
@@ -263,7 +264,7 @@ var _ = SIGDescribe("Container Manager Misc", framework.WithSerial(), func() {
 						err    error
 					)
 					gomega.Eventually(ctx, func() error {
-						wsPids, err = getPidsForProcess("agnhost", "")
+						wsPids, err = GetPidsForProcess("agnhost", "")
 						if err != nil {
 							return fmt.Errorf("failed to get list of test-webserver process pids: %w", err)
 						}
