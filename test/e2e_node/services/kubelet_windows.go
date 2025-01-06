@@ -47,7 +47,7 @@ func adjustPlatformSpecificKubeletArgs(cmdArgs []string, isSystemd bool) ([]stri
 
 	logRunnerArgs := []string{}
 	logRunnerArgs = append(logRunnerArgs, escapedPath)
-	logfileFullPath := filepath.Join(dir, "kublet.log")
+	logfileFullPath := filepath.Join(dir, "kubelet.log")
 	logRunnerArgs = append(logRunnerArgs, "--log-file="+logfileFullPath)
 	// TODO: Add log rotation after the kube-log-runner is enhanced to support it
 	// logRunnerArgs = append(logRunnerArgs, " --log-file-size=100M")
