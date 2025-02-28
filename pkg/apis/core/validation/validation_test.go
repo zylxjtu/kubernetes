@@ -9737,6 +9737,7 @@ func TestValidatePodDNSConfig(t *testing.T) {
 		dnsConfig     *core.PodDNSConfig
 		dnsPolicy     *core.DNSPolicy
 		opts          PodValidationOptions
+		legacyIPs     bool
 		expectedError bool
 	}{{
 		desc:          "valid: empty DNSConfig",
@@ -9932,6 +9933,19 @@ func TestValidatePodDNSConfig(t *testing.T) {
 		},
 		expectedError: true,
 	}, {
+		desc: "valid legacy IP nameserver with legacy IP validation",
+		dnsConfig: &core.PodDNSConfig{
+			Nameservers: []string{"001.002.003.004"},
+		},
+		legacyIPs:     true,
+		expectedError: false,
+	}, {
+		desc: "invalid legacy IP nameserver with strict IP validation",
+		dnsConfig: &core.PodDNSConfig{
+			Nameservers: []string{"001.002.003.004"},
+		},
+		expectedError: true,
+	}, {
 		desc: "invalid empty option name",
 		dnsConfig: &core.PodDNSConfig{
 			Options: []core.PodDNSConfigOption{
@@ -9951,6 +9965,8 @@ func TestValidatePodDNSConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run("", func(t *testing.T) {
+			featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StrictIPCIDRValidation, !tc.legacyIPs)
+
 			if tc.dnsPolicy == nil {
 				tc.dnsPolicy = &testDNSClusterFirst
 			}
@@ -10191,6 +10207,24 @@ func TestValidatePodSpec(t *testing.T) {
 	}
 	for k, v := range successCases {
 		t.Run(k, func(t *testing.T) {
+			featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StrictIPCIDRValidation, true)
+			opts := PodValidationOptions{
+				ResourceIsPod: true,
+			}
+			if errs := ValidatePodSpec(&v.Spec, nil, field.NewPath("field"), opts); len(errs) != 0 {
+				t.Errorf("expected success: %v", errs)
+			}
+		})
+	}
+
+	legacyValidationCases := map[string]*core.Pod{
+		"populate HostAliases with legacy IP with legacy validation": podtest.MakePod("",
+			podtest.SetHostAliases(core.HostAlias{IP: "012.034.056.078", Hostnames: []string{"host1", "host2"}}),
+		),
+	}
+	for k, v := range legacyValidationCases {
+		t.Run(k, func(t *testing.T) {
+			featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StrictIPCIDRValidation, false)
 			opts := PodValidationOptions{
 				ResourceIsPod: true,
 			}
@@ -10235,6 +10269,12 @@ func TestValidatePodSpec(t *testing.T) {
 				HostNetwork: false,
 			}),
 			podtest.SetHostAliases(core.HostAlias{IP: "999.999.999.999", Hostnames: []string{"host1", "host2"}}),
+		),
+		"with hostAliases with invalid legacy IP with strict IP validation": *podtest.MakePod("",
+			podtest.SetSecurityContext(&core.PodSecurityContext{
+				HostNetwork: false,
+			}),
+			podtest.SetHostAliases(core.HostAlias{IP: "001.002.003.004", Hostnames: []string{"host1", "host2"}}),
 		),
 		"with hostAliases with invalid hostname": *podtest.MakePod("",
 			podtest.SetSecurityContext(&core.PodSecurityContext{
@@ -10306,6 +10346,7 @@ func TestValidatePodSpec(t *testing.T) {
 	}
 	for k, v := range failureCases {
 		t.Run(k, func(t *testing.T) {
+			featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StrictIPCIDRValidation, true)
 			opts := PodValidationOptions{
 				ResourceIsPod: true,
 			}
@@ -15117,7 +15158,17 @@ func TestValidateServiceCreate(t *testing.T) {
 		tweakSvc     func(svc *core.Service) // given a basic valid service, each test case can customize it
 		numErrs      int
 		featureGates []featuregate.Feature
+		legacyIPs    bool
 	}{{
+		name:     "default",
+		tweakSvc: func(s *core.Service) {},
+		numErrs:  0,
+	}, {
+		name:      "default, with legacy IP validation",
+		tweakSvc:  func(s *core.Service) {},
+		legacyIPs: true,
+		numErrs:   0,
+	}, {
 		name: "missing namespace",
 		tweakSvc: func(s *core.Service) {
 			s.Namespace = ""
@@ -15254,6 +15305,21 @@ func TestValidateServiceCreate(t *testing.T) {
 		},
 		numErrs: 1,
 	}, {
+		name: "valid legacy cluster ip with legacy validation",
+		tweakSvc: func(s *core.Service) {
+			s.Spec.ClusterIP = "001.002.003.004"
+			s.Spec.ClusterIPs = []string{"001.002.003.004"}
+		},
+		legacyIPs: true,
+		numErrs:   0,
+	}, {
+		name: "invalid legacy cluster ip with strict validation",
+		tweakSvc: func(s *core.Service) {
+			s.Spec.ClusterIP = "001.002.003.004"
+			s.Spec.ClusterIPs = []string{"001.002.003.004"}
+		},
+		numErrs: 1,
+	}, {
 		name: "missing port",
 		tweakSvc: func(s *core.Service) {
 			s.Spec.Ports[0].Port = 0
@@ -15330,6 +15396,21 @@ func TestValidateServiceCreate(t *testing.T) {
 		tweakSvc: func(s *core.Service) {
 			s.Spec.ExternalTrafficPolicy = core.ServiceExternalTrafficPolicyCluster
 			s.Spec.ExternalIPs = []string{"myhost.mydomain"}
+		},
+		numErrs: 1,
+	}, {
+		name: "valid legacy externalIPs with legacy validation",
+		tweakSvc: func(s *core.Service) {
+			s.Spec.ExternalTrafficPolicy = core.ServiceExternalTrafficPolicyCluster
+			s.Spec.ExternalIPs = []string{"001.002.003.004"}
+		},
+		legacyIPs: true,
+		numErrs:   0,
+	}, {
+		name: "invalid legacy externalIPs with strict validation",
+		tweakSvc: func(s *core.Service) {
+			s.Spec.ExternalTrafficPolicy = core.ServiceExternalTrafficPolicyCluster
+			s.Spec.ExternalIPs = []string{"001.002.003.004"}
 		},
 		numErrs: 1,
 	}, {
@@ -15641,6 +15722,34 @@ func TestValidateServiceCreate(t *testing.T) {
 		name: "invalid empty-but-set LoadBalancer source range annotation for non LoadBalancer type service",
 		tweakSvc: func(s *core.Service) {
 			s.Annotations[core.AnnotationLoadBalancerSourceRangesKey] = ""
+		},
+		numErrs: 1,
+	}, {
+		name: "valid legacy LoadBalancer source range with legacy validation",
+		tweakSvc: func(s *core.Service) {
+			s.Spec.Type = core.ServiceTypeLoadBalancer
+			s.Spec.ExternalTrafficPolicy = core.ServiceExternalTrafficPolicyCluster
+			s.Spec.AllocateLoadBalancerNodePorts = ptr.To(true)
+			s.Spec.LoadBalancerSourceRanges = []string{"001.002.003.000/24"}
+		},
+		legacyIPs: true,
+		numErrs:   0,
+	}, {
+		name: "invalid legacy LoadBalancer source range with strict validation",
+		tweakSvc: func(s *core.Service) {
+			s.Spec.Type = core.ServiceTypeLoadBalancer
+			s.Spec.ExternalTrafficPolicy = core.ServiceExternalTrafficPolicyCluster
+			s.Spec.AllocateLoadBalancerNodePorts = ptr.To(true)
+			s.Spec.LoadBalancerSourceRanges = []string{"001.002.003.000/24"}
+		},
+		numErrs: 1,
+	}, {
+		name: "invalid legacy LoadBalancer source range annotation with strict validation",
+		tweakSvc: func(s *core.Service) {
+			s.Spec.Type = core.ServiceTypeLoadBalancer
+			s.Spec.ExternalTrafficPolicy = core.ServiceExternalTrafficPolicyCluster
+			s.Spec.AllocateLoadBalancerNodePorts = ptr.To(true)
+			s.Annotations[core.AnnotationLoadBalancerSourceRangesKey] = "001.002.003.000/24"
 		},
 		numErrs: 1,
 	}, {
@@ -16317,6 +16426,7 @@ func TestValidateServiceCreate(t *testing.T) {
 			for i := range tc.featureGates {
 				featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, tc.featureGates[i], true)
 			}
+			featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StrictIPCIDRValidation, !tc.legacyIPs)
 			svc := makeValidService()
 			tc.tweakSvc(&svc)
 			errs := ValidateServiceCreate(&svc)
@@ -16993,7 +17103,36 @@ func TestValidateNode(t *testing.T) {
 	}
 	for _, successCase := range successCases {
 		t.Run("", func(t *testing.T) {
+			featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StrictIPCIDRValidation, true)
 			if errs := ValidateNode(&successCase); len(errs) != 0 {
+				t.Errorf("expected success: %v", errs)
+			}
+		})
+	}
+
+	legacyValidationCases := map[string]core.Node{
+		"valid-legacy-pod-cidr-with-legacy-validation": {
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "abc",
+			},
+			Status: core.NodeStatus{
+				Addresses: []core.NodeAddress{
+					{Type: core.NodeExternalIP, Address: "something"},
+				},
+				Capacity: core.ResourceList{
+					core.ResourceName(core.ResourceCPU):    resource.MustParse("10"),
+					core.ResourceName(core.ResourceMemory): resource.MustParse("0"),
+				},
+			},
+			Spec: core.NodeSpec{
+				PodCIDRs: []string{"192.168.000.000/16"},
+			},
+		},
+	}
+	for name, legacyCase := range legacyValidationCases {
+		t.Run(name, func(t *testing.T) {
+			featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StrictIPCIDRValidation, false)
+			if errs := ValidateNode(&legacyCase); len(errs) != 0 {
 				t.Errorf("expected success: %v", errs)
 			}
 		})
@@ -17181,6 +17320,23 @@ func TestValidateNode(t *testing.T) {
 				PodCIDRs: []string{"192.168.0.0"},
 			},
 		},
+		"invalid-legacy-pod-cidr-with-strict-validation": {
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "abc",
+			},
+			Status: core.NodeStatus{
+				Addresses: []core.NodeAddress{
+					{Type: core.NodeExternalIP, Address: "something"},
+				},
+				Capacity: core.ResourceList{
+					core.ResourceName(core.ResourceCPU):    resource.MustParse("10"),
+					core.ResourceName(core.ResourceMemory): resource.MustParse("0"),
+				},
+			},
+			Spec: core.NodeSpec{
+				PodCIDRs: []string{"192.168.000.000/16"},
+			},
+		},
 		"duplicate-pod-cidr": {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "abc",
@@ -17201,6 +17357,8 @@ func TestValidateNode(t *testing.T) {
 	}
 	for k, v := range errorCases {
 		t.Run(k, func(t *testing.T) {
+			featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StrictIPCIDRValidation, true)
+
 			errs := ValidateNode(&v)
 			if len(errs) == 0 {
 				t.Errorf("expected failure")
@@ -20589,9 +20747,36 @@ func TestValidateEndpointsCreate(t *testing.T) {
 			},
 		},
 	}
-
 	for name, tc := range successCases {
 		t.Run(name, func(t *testing.T) {
+			featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StrictIPCIDRValidation, true)
+			errs := ValidateEndpointsCreate(&tc.endpoints)
+			if len(errs) != 0 {
+				t.Errorf("Expected no validation errors, got %v", errs)
+			}
+
+		})
+	}
+
+	legacyValidationCases := map[string]struct {
+		endpoints core.Endpoints
+	}{
+		"legacy IPs with legacy validation": {
+			endpoints: core.Endpoints{
+				ObjectMeta: metav1.ObjectMeta{Name: "mysvc", Namespace: "namespace"},
+				Subsets: []core.EndpointSubset{{
+					Addresses: []core.EndpointAddress{{IP: "010.010.001.001"}, {IP: "10.10.2.2"}},
+					Ports:     []core.EndpointPort{{Name: "a", Port: 8675, Protocol: "TCP"}, {Name: "b", Port: 309, Protocol: "TCP"}},
+				}, {
+					Addresses: []core.EndpointAddress{{IP: "::ffff:10.10.3.3"}},
+					Ports:     []core.EndpointPort{{Name: "a", Port: 93, Protocol: "TCP"}, {Name: "b", Port: 76, Protocol: "TCP"}},
+				}},
+			},
+		},
+	}
+	for name, tc := range legacyValidationCases {
+		t.Run(name, func(t *testing.T) {
+			featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StrictIPCIDRValidation, false)
 			errs := ValidateEndpointsCreate(&tc.endpoints)
 			if len(errs) != 0 {
 				t.Errorf("Expected no validation errors, got %v", errs)
@@ -20644,6 +20829,18 @@ func TestValidateEndpointsCreate(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "mysvc", Namespace: "namespace"},
 				Subsets: []core.EndpointSubset{{
 					Addresses: []core.EndpointAddress{{IP: "[2001:0db8:85a3:0042:1000:8a2e:0370:7334]"}},
+					Ports:     []core.EndpointPort{{Name: "a", Port: 93, Protocol: "TCP"}},
+				}},
+			},
+			expectedErrs: field.ErrorList{
+				field.Invalid(field.NewPath("subsets[0].addresses[0].ip"), nil, "").WithOrigin("format=ip-sloppy"),
+			},
+		},
+		"invalid legacy IP with strict validation": {
+			endpoints: core.Endpoints{
+				ObjectMeta: metav1.ObjectMeta{Name: "mysvc", Namespace: "namespace"},
+				Subsets: []core.EndpointSubset{{
+					Addresses: []core.EndpointAddress{{IP: "001.002.003.004"}},
 					Ports:     []core.EndpointPort{{Name: "a", Port: 93, Protocol: "TCP"}},
 				}},
 			},
@@ -20775,6 +20972,7 @@ func TestValidateEndpointsCreate(t *testing.T) {
 
 	for k, v := range errorCases {
 		t.Run(k, func(t *testing.T) {
+			featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StrictIPCIDRValidation, true)
 			errs := ValidateEndpointsCreate(&v.endpoints)
 			// TODO: set .RequireOriginWhenInvalid() once metadata is done
 			matcher := field.ErrorMatcher{}.ByType().ByField().ByOrigin()
@@ -22837,6 +23035,7 @@ func TestPodIPsValidation(t *testing.T) {
 
 	testCases := []struct {
 		pod         core.Pod
+		legacyIPs   bool
 		expectError bool
 	}{
 		{
@@ -22857,11 +23056,18 @@ func TestPodIPsValidation(t *testing.T) {
 		}, {
 			expectError: false,
 			pod:         makePod("dual-stack-6-4", "ns", []core.PodIP{{IP: "::1"}, {IP: "1.1.1.1"}}),
+		}, {
+			expectError: false,
+			legacyIPs:   true,
+			pod:         makePod("legacy-pod-ip-with-legacy-validation", "ns", []core.PodIP{{IP: "001.002.003.004"}}),
 		},
 		/* failure cases start here */
 		{
 			expectError: true,
 			pod:         makePod("invalid-pod-ip", "ns", []core.PodIP{{IP: "this-is-not-an-ip"}}),
+		}, {
+			expectError: true,
+			pod:         makePod("legacy-pod-ip-with-strict-validation", "ns", []core.PodIP{{IP: "001.002.003.004"}}),
 		}, {
 			expectError: true,
 			pod:         makePod("dualstack-same-ip-family-6", "ns", []core.PodIP{{IP: "::1"}, {IP: "::2"}}),
@@ -22887,6 +23093,7 @@ func TestPodIPsValidation(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.pod.Name, func(t *testing.T) {
+			featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StrictIPCIDRValidation, !testCase.legacyIPs)
 			for _, oldTestCase := range testCases {
 				newPod := testCase.pod.DeepCopy()
 				newPod.ResourceVersion = "1"
@@ -22937,6 +23144,7 @@ func TestHostIPsValidation(t *testing.T) {
 
 	testCases := []struct {
 		pod         core.Pod
+		legacyIPs   bool
 		expectError bool
 	}{
 		{
@@ -22963,10 +23171,19 @@ func TestHostIPsValidation(t *testing.T) {
 			expectError: false,
 			pod:         makePodWithHostIPs("dual-stack-6-4", "ns", []core.HostIP{{IP: "::1"}, {IP: "1.1.1.1"}}),
 		},
+		{
+			expectError: false,
+			legacyIPs:   true,
+			pod:         makePodWithHostIPs("legacy-host-ip-with-legacy-validation", "ns", []core.HostIP{{IP: "001.002.003.004"}}),
+		},
 		/* failure cases start here */
 		{
 			expectError: true,
 			pod:         makePodWithHostIPs("invalid-host-ip", "ns", []core.HostIP{{IP: "this-is-not-an-ip"}}),
+		},
+		{
+			expectError: true,
+			pod:         makePodWithHostIPs("invalid-legacy-host-ip-with-strict-validation", "ns", []core.HostIP{{IP: "001.002.003.004"}}),
 		},
 		{
 			expectError: true,
@@ -22997,6 +23214,7 @@ func TestHostIPsValidation(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.pod.Name, func(t *testing.T) {
+			featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StrictIPCIDRValidation, !testCase.legacyIPs)
 			for _, oldTestCase := range testCases {
 				newPod := testCase.pod.DeepCopy()
 				newPod.ResourceVersion = "1"
@@ -24565,6 +24783,7 @@ func TestValidateLoadBalancerStatus(t *testing.T) {
 	testCases := []struct {
 		name          string
 		ipModeEnabled bool
+		legacyIPs     bool
 		nonLBAllowed  bool
 		tweakLBStatus func(s *core.LoadBalancerStatus)
 		tweakSvcSpec  func(s *core.ServiceSpec)
@@ -24651,12 +24870,37 @@ func TestValidateLoadBalancerStatus(t *testing.T) {
 				}}
 			},
 			numErrs: 1,
+		}, {
+			name:          "legacy IP with legacy validation",
+			ipModeEnabled: true,
+			legacyIPs:     true,
+			tweakLBStatus: func(s *core.LoadBalancerStatus) {
+				s.Ingress = []core.LoadBalancerIngress{{
+					IP:     "001.002.003.004",
+					IPMode: &ipModeVIP,
+				}}
+			},
+			numErrs: 0,
+		}, {
+			name:          "legacy IP with strict validation",
+			ipModeEnabled: true,
+			tweakLBStatus: func(s *core.LoadBalancerStatus) {
+				s.Ingress = []core.LoadBalancerIngress{{
+					IP:     "001.002.003.004",
+					IPMode: &ipModeVIP,
+				}}
+			},
+			numErrs: 1,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if !tc.ipModeEnabled {
 				featuregatetesting.SetFeatureGateEmulationVersionDuringTest(t, utilfeature.DefaultFeatureGate, version.MustParse("1.31"))
+			} else {
+				// (This feature gate doesn't exist in 1.31 so we can't set it
+				// when testing !ipModeEnabled.)
+				featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StrictIPCIDRValidation, !tc.legacyIPs)
 			}
 			featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.LoadBalancerIPMode, tc.ipModeEnabled)
 			featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.AllowServiceLBStatusOnNonLB, tc.nonLBAllowed)
