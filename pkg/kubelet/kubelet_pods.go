@@ -2115,7 +2115,7 @@ func (kl *Kubelet) convertToAPIContainerStatuses(pod *v1.Pod, podStatus *kubecon
 			if _, exists := resources.Requests[v1.ResourceMemory]; exists {
 				// Get memory requests from actuated resources
 				if actuatedResources, found := kl.allocationManager.GetActuatedResources(pod.UID, allocatedContainer.Name); found {
-					resources.Requests[v1.ResourceMemory] = actuatedResources.Requests.Memory().DeepCopy()
+					resources.Requests[v1.ResourceMemory] = *actuatedResources.Requests.Memory()
 				}
 			}
 		}
