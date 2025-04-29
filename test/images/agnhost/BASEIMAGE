@@ -5,3 +5,4 @@ linux/ppc64le=ppc64le/alpine:3.19
 linux/s390x=s390x/alpine:3.19
 windows/amd64/1809=REGISTRY/busybox:1.37.1-1-windows-amd64-1809
 windows/amd64/ltsc2022=REGISTRY/busybox:1.37.1-1-windows-amd64-ltsc2022
+

@@ -17,7 +17,13 @@ FROM $BASEIMAGE as build_node_perf_npb_ep
 
 CROSS_BUILD_COPY qemu-QEMUARCH-static /usr/bin/
 
-RUN apt-get update && apt-get install -y build-essential gfortran
+RUN echo "deb http://archive.debian.org/debian stretch main" > /etc/apt/sources.list && \
+    echo "deb http://archive.debian.org/debian-security stretch/updates main" >> /etc/apt/sources.list && \
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until && \
+    apt-get update && \
+    apt-get install -y --allow-unauthenticated build-essential gfortran && \
+    apt-get clean
+
 
 ADD http://www.nas.nasa.gov/assets/npb/NPB3.3.1.tar.gz .
 RUN tar xzf NPB3.3.1.tar.gz

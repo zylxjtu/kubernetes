@@ -17,7 +17,8 @@ FROM $BASEIMAGE
 
 CROSS_BUILD_COPY qemu-QEMUARCH-static /usr/bin/
 
-RUN apk add apparmor libapparmor --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/community/ --allow-untrusted
+RUN apk add --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/main apparmor libapparmor
+ 
 
 ADD loader /usr/bin/loader
 
