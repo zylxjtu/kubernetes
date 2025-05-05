@@ -127,7 +127,8 @@ build() {
 
     # Create a temporary directory for every architecture and copy the image content
     # and build the image from temporary directory
-    temp_dir="$(kube::realpath "$(mktemp -d -t "$(basename "$0").XXXXXX")")"
+    mkdir -p "${KUBE_ROOT}"/_tmp
+    temp_dir=$(mktemp -d "${KUBE_ROOT}"/_tmp/test-images-build.XXXXXX)
     kube::util::trap_add "rm -rf ${temp_dir}" EXIT
 
     cp -r "${img_folder}"/* "${temp_dir}"
@@ -269,7 +270,7 @@ bin() {
         golang:"${GOLANG_VERSION}" \
         /bin/bash -c "\
                 cd /go/src/k8s.io/kubernetes/test/images/${SRC_DIR} && \
-                CGO_ENABLED=0 ${arch_prefix} GOOS=${OS} GOARCH=${ARCH} go build -a -installsuffix cgo --ldflags \"-w ${LD_FLAGS:-}\" -o ${TARGET}/${SRC} ./$(dirname "${SRC}")"
+                CGO_ENABLED=0 ${arch_prefix} GOOS=${OS} GOARCH=${ARCH} go build -a -buildvcs=false -installsuffix cgo --ldflags \"-w ${LD_FLAGS:-}\" -o ${TARGET}/${SRC} ./$(dirname "${SRC}")"
   done
 }
 
