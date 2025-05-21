@@ -23,13 +23,14 @@ import (
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/apimachinery/pkg/util/uuid"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/test/e2e/feature"
 	"k8s.io/kubernetes/test/e2e/framework"
+	e2edaemonset "k8s.io/kubernetes/test/e2e/framework/daemonset"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 	imageutils "k8s.io/kubernetes/test/utils/image"
@@ -55,37 +56,102 @@ var _ = sigDescribe(feature.Windows, "[Excluded:WindowsDocker] [MinimumKubeletVe
 		framework.ExpectNoError(err, "Error converting bootID to int")
 		framework.Logf("Initial BootID: %d", bootID)
 
-		windowsImage := imageutils.GetE2EImage(imageutils.Agnhost)
+		daemonSetName := "agn"
+		labelSet := map[string]string{"ds-name": daemonSetName}
 
-		// Create Windows pod on the selected Windows node Using Agnhost
-		podName := "pod-" + string(uuid.NewUUID())
-		agnPod := &v1.Pod{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Pod",
-				APIVersion: "v1",
-			},
+		ns := f.Namespace
+
+		// daemonSet := e2edaemonset.NewDaemonSet(daemonSetName, image, labelSet, nil, nil, []v1.ContainerPort{{ContainerPort: 80}})
+		// daemonSet.Spec.Template.Spec.Tolerations = []v1.Toleration{
+		// 	{Operator: v1.TolerationOpExists},
+		// }
+		windowsImage := imageutils.GetE2EImage(imageutils.Agnhost)
+		daemonSet := &appsv1.DaemonSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: podName,
+				Name:   daemonSetName,
+				Labels: labelSet,
 			},
-			Spec: v1.PodSpec{
-				Containers: []v1.Container{
-					{
-						Name:  "windows-container",
-						Image: windowsImage,
-						Ports: []v1.ContainerPort{{ContainerPort: 80}},
+			Spec: appsv1.DaemonSetSpec{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: labelSet,
+				},
+				Template: v1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: labelSet,
+					},
+					Spec: v1.PodSpec{
+						Containers: []v1.Container{
+							{
+								Name:            "agn",
+								Image:           windowsImage,
+								Ports:           []v1.ContainerPort{{ContainerPort: 80}},
+								SecurityContext: &v1.SecurityContext{},
+							},
+						},
+						SecurityContext: &v1.PodSecurityContext{},
+						NodeSelector: map[string]string{
+							"kubernetes.io/hostname": targetNode.Name},
+						Tolerations: []v1.Toleration{
+							{Operator: v1.TolerationOpExists},
+						},
 					},
 				},
-				RestartPolicy: v1.RestartPolicyAlways,
-				NodeName:      targetNode.Name,
 			},
 		}
-		agnPod.Spec.Containers[0].Args = []string{"test-webserver"}
-		ginkgo.By("creating a windows pod and waiting for it to be running")
-		agnPod = e2epod.NewPodClient(f).CreateSync(ctx, agnPod)
+
+		ginkgo.By("Creating a DaemonSet")
+		if daemonSet, err = f.ClientSet.AppsV1().DaemonSets(ns.Name).Create(ctx, daemonSet, metav1.CreateOptions{}); err != nil {
+			framework.Failf("unable to create test DaemonSet %s: %v", daemonSet.Name, err)
+		}
+
+		ginkgo.By("confirming the DaemonSet pods are running on all expected nodes")
+		res, err := e2edaemonset.CheckDaemonPodOnNodes(f, daemonSet, []string{targetNode.Name})(ctx)
+		//res, err := e2edaemonset.CheckRunningOnAllNodes(ctx, f, daemonSet)
+		framework.ExpectNoError(err)
+		if !res {
+			framework.Failf("expected DaemonSet pod to be running on specific nodes, it was not")
+		}
+
+		listPods, err := f.ClientSet.CoreV1().Pods(f.Namespace.Name).List(ctx, metav1.ListOptions{})
+		framework.ExpectNoError(err)
+		gomega.Expect(len(listPods.Items)).To(gomega.Equal(1), "There should be only one pod created by the DaemonSet")
+		agnPod := listPods.Items[0]
+
+		// DaemonSet resource itself should be good
+		ginkgo.By("confirming the DaemonSet resource is in a good state")
+
+		err = e2edaemonset.CheckDaemonStatus(ctx, f, daemonSet.Name)
+		framework.ExpectNoError(err)
+
+		// // Create Windows pod on the selected Windows node Using Agnhost
+		// podName := "pod-" + string(uuid.NewUUID())
+		// agnPod := &v1.Pod{
+		// 	TypeMeta: metav1.TypeMeta{
+		// 		Kind:       "Pod",
+		// 		APIVersion: "v1",
+		// 	},
+		// 	ObjectMeta: metav1.ObjectMeta{
+		// 		Name: podName,
+		// 	},
+		// 	Spec: v1.PodSpec{
+		// 		Containers: []v1.Container{
+		// 			{
+		// 				Name:  "windows-container",
+		// 				Image: windowsImage,
+		// 				Ports: []v1.ContainerPort{{ContainerPort: 80}},
+		// 			},
+		// 		},
+		// 		RestartPolicy: v1.RestartPolicyAlways,
+		// 		NodeName:      targetNode.Name,
+		// 	},
+		// }
+		// agnPod.Spec.Containers[0].Args = []string{"test-webserver"}
+		// ginkgo.By("creating a windows pod and waiting for it to be running")
+		// agnPod = e2epod.NewPodClient(f).CreateSync(ctx, agnPod)
 
 		// Create Linux pod to ping the windows pod
 		linuxBusyBoxImage := imageutils.GetE2EImage(imageutils.Nginx)
-		podName = "pod-" + string(uuid.NewUUID())
+		podName := "pod-" + string(uuid.NewUUID())
 		nginxPod := &v1.Pod{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Pod",
@@ -120,7 +186,7 @@ var _ = sigDescribe(feature.Windows, "[Excluded:WindowsDocker] [MinimumKubeletVe
 		assertConsistentConnectivity(ctx, f, nginxPod.ObjectMeta.Name, "linux", linuxCheck("8.8.8.8", 53), externalMaxTries)
 
 		ginkgo.By("checking connectivity to www.google.com from Windows")
-		assertConsistentConnectivity(ctx, f, agnPod.ObjectMeta.Name, "windows", windowsCheck("www.google.com"), externalMaxTries)
+		assertConsistentConnectivity(ctx, f, daemonSet.ObjectMeta.Name, "windows", windowsCheck("www.google.com"), externalMaxTries)
 
 		ginkgo.By("checking connectivity from Linux to Windows for the first time")
 		assertConsistentConnectivity(ctx, f, nginxPod.ObjectMeta.Name, "linux", linuxCheck(agnPod.Status.PodIP, 80), internalMaxTries)
@@ -198,6 +264,7 @@ var _ = sigDescribe(feature.Windows, "[Excluded:WindowsDocker] [MinimumKubeletVe
 					restartCount = int(lastRestartCount - initialRestartCount)
 				}
 				time.Sleep(time.Second * 30)
+				restartCount = 1
 			}
 		}
 
