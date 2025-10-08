@@ -1,7 +1,7 @@
-//go:build linux
+//go:build windows
 
 /*
-Copyright 2017 The Kubernetes Authors.
+Copyright The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,16 +27,12 @@ import (
 // LogFileData holds data about logfiles to fetch with a journalctl command or
 // file from a node's file system.
 type LogFileData struct {
-	// Name of the log file.
-	Name string `json:"name"`
-	// Files are possible absolute paths of the log file.
-	Files []string `json:"files"`
-	// JournalctlCommand is the journalctl command to get log.
+	Name              string   `json:"name"`
+	Files             []string `json:"files"`
 	JournalctlCommand []string `json:"journalctl"`
 }
 
-// logFiles are the type used to collect all log files. The key is the expected
-// name of the log file after collected.
+// logFiles are the type used to collect all log files.
 type logFiles map[string]LogFileData
 
 // String function of flag.Value
@@ -50,48 +46,21 @@ func (l *logFiles) Set(value string) error {
 	if err := json.Unmarshal([]byte(value), &log); err != nil {
 		return err
 	}
-	// Note that we assume all white space in flag string is separating fields
 	logs := *l
 	logs[log.Name] = log
 	return nil
 }
 
-// extraLogs is the extra logs specified by the test runner.
 var extraLogs = make(logFiles)
 
 func init() {
 	flag.Var(&extraLogs, "extra-log", "Extra log to collect after test in the json format of LogFile.")
 }
 
-// requiredLogs is the required logs to collect after the test.
-var requiredLogs = []LogFileData{
-	{
-		Name:              "kern.log",
-		Files:             []string{"/var/log/kern.log"},
-		JournalctlCommand: []string{"-k"},
-	},
-	{
-		Name:              "cloud-init.log",
-		Files:             []string{"/var/log/cloud-init.log", "/var/log/cloud-init-output.log"},
-		JournalctlCommand: []string{"-u", "cloud*"},
-	},
-	{
-		Name:              "containerd.log",
-		Files:             []string{"/var/log/containerd.log"},
-		JournalctlCommand: []string{"-u", "containerd"},
-	},
-	{
-		Name:              "containerd-installation.log",
-		JournalctlCommand: []string{"-u", "containerd-installation"},
-	},
-}
-
-// getLogFiles get all logs to collect after the test.
+// getLogFiles returns the log files to collect. Windows has no journald or
+// standard Linux log paths, so only extra logs specified via flags are returned.
 func getLogFiles() logFiles {
 	logs := make(logFiles)
-	for _, l := range requiredLogs {
-		logs[l.Name] = l
-	}
 	for _, l := range extraLogs {
 		logs[l.Name] = l
 	}

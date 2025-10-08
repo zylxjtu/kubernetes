@@ -1,7 +1,7 @@
-//go:build linux
+//go:build windows
 
 /*
-Copyright 2016 The Kubernetes Authors.
+Copyright The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	apiserver "k8s.io/kubernetes/cmd/kube-apiserver/app"
 	"k8s.io/kubernetes/cmd/kube-apiserver/app/options"
+	"k8s.io/kubernetes/pkg/util/filesystem"
 	"k8s.io/kubernetes/test/e2e/framework"
 )
 
@@ -82,6 +83,11 @@ func (a *APIServer) Start(ctx context.Context) error {
 	}
 	o.Authentication.TokenFile.TokenFile = tokenFilePath
 	o.Admission.GenericAdmission.DisablePlugins = []string{"ServiceAccount", "TaintNodesByCondition"}
+
+	err = filesystem.MkdirAll("/tmp", 0755)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("create temp dir failed: %w", err)
+	}
 
 	saSigningKeyFile, err := os.CreateTemp("/tmp", "insecure_test_key")
 	if err != nil {
