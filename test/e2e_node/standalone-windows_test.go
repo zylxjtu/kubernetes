@@ -113,7 +113,7 @@ func createWindowsBasicStaticPod(dir, name, namespace string) error {
 						},
 						Limits: v1.ResourceList{
 							// v1.ResourceMemory: resource.MustParse("15Mi"),
-							v1.ResourceMemory: resource.MustParse("100Mi"),
+							v1.ResourceMemory: resource.MustParse("512Mi"),
 						},
 					},
 					ReadinessProbe: &v1.Probe{

@@ -154,6 +154,4 @@ func deleteStateFile(stateFileName string) {
 // systemValidation validates the system spec.
 func systemValidation(systemSpecFile *string) {
 	klog.Warningf("system spec validation is not supported on platform other than linux yet")
-
-	return
 }
