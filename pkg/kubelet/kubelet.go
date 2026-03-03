@@ -685,7 +685,8 @@ func NewMainKubelet(ctx context.Context,
 	klet.livenessManager = proberesults.NewManager()
 	klet.readinessManager = proberesults.NewManager()
 	klet.startupManager = proberesults.NewManager()
-	klet.podCache = kubecontainer.NewCache()
+	podCache := kubecontainer.NewCache()
+	klet.podCache = podCache
 
 	klet.mirrorPodClient = kubepod.NewBasicMirrorClient(klet.kubeClient, string(nodeName), nodeLister)
 	klet.podManager = kubepod.NewBasicPodManager()
@@ -854,7 +855,7 @@ func NewMainKubelet(ctx context.Context,
 			RelistPeriod:    eventedPlegRelistPeriod,
 			RelistThreshold: eventedPlegRelistThreshold,
 		}
-		klet.pleg = pleg.NewGenericPLEG(logger, klet.containerRuntime, eventChannel, genericRelistDuration, klet.podCache, clock.RealClock{})
+		klet.pleg = pleg.NewGenericPLEG(logger, klet.containerRuntime, eventChannel, genericRelistDuration, podCache, clock.RealClock{})
 		// In case Evented PLEG has to fall back on Generic PLEG due to an error,
 		// Evented PLEG should be able to reset the Generic PLEG relisting duration
 		// to the default value.
@@ -863,7 +864,7 @@ func NewMainKubelet(ctx context.Context,
 			RelistThreshold: genericPlegRelistThreshold,
 		}
 		klet.eventedPleg, err = pleg.NewEventedPLEG(logger, klet.containerRuntime, klet.runtimeService, eventChannel,
-			klet.podCache, klet.pleg, eventedPlegMaxStreamRetries, eventedRelistDuration, clock.RealClock{})
+			podCache, klet.pleg, eventedPlegMaxStreamRetries, eventedRelistDuration, clock.RealClock{})
 		if err != nil {
 			return nil, err
 		}
@@ -872,7 +873,7 @@ func NewMainKubelet(ctx context.Context,
 			RelistPeriod:    genericPlegRelistPeriod,
 			RelistThreshold: genericPlegRelistThreshold,
 		}
-		klet.pleg = pleg.NewGenericPLEG(logger, klet.containerRuntime, eventChannel, genericRelistDuration, klet.podCache, clock.RealClock{})
+		klet.pleg = pleg.NewGenericPLEG(logger, klet.containerRuntime, eventChannel, genericRelistDuration, podCache, clock.RealClock{})
 	}
 
 	klet.runtimeState = newRuntimeState(maxWaitForContainerRuntime)
@@ -1448,7 +1449,7 @@ type Kubelet struct {
 	eventedPleg pleg.PodLifecycleEventGenerator
 
 	// Store kubecontainer.PodStatus for all pods.
-	podCache kubecontainer.Cache
+	podCache kubecontainer.ROCache
 
 	// os is a facade for various syscalls that need to be mocked during testing.
 	os kubecontainer.OSInterface
