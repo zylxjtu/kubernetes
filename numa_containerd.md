@@ -32,7 +32,7 @@ if affinity[0].Group != 0 {
 | Supports non-zero groups | ❌ Hard-fails if Group != 0 |
 | Works on large VMs (96+ vCPUs) | ❌ Fails or only covers first 64 CPUs |
 
-### How to Fix
+### Suggestions for fixing
 
 #### 1. Accept multiple `GROUP_AFFINITY` entries
 
