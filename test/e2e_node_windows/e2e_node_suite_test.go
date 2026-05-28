@@ -166,6 +166,7 @@ func TestE2eNode(t *testing.T) {
 	if *systemValidateMode {
 		// If system-validate-mode is specified, only run system validation in current process.
 		klog.Warningf("system spec validation is not supported on platform other than linux yet")
+		return
 	}
 
 	// We're not running in a special mode so lets run tests.
