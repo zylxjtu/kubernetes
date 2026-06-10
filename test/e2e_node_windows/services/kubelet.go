@@ -43,8 +43,6 @@ import (
 	"k8s.io/kubernetes/test/e2e_node_windows/builder"
 )
 
-var k8sBinDir = flag.String("k8s-bin-dir", "", "Directory containing k8s kubelet binaries.")
-
 // args is the type used to accumulate args from the flags with the same name.
 type args []string
 

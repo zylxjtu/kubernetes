@@ -98,32 +98,49 @@ const (
 	kubeletServiceName = "kubelet"
 )
 
-// getKubeletServicePID returns the PID of the kubelet service.
+// getKubeletServicePID returns the PID of the kubelet service, or 0 if it
+// cannot be determined (e.g. the service is no longer running).
 func getKubeletServicePID() int {
 	cmdLine := []string{"sc.exe", "queryex", kubeletServiceName}
 
-	// kubelet service should have already been registered
 	stdout, err := exec.Command(cmdLine[0], cmdLine[1:]...).CombinedOutput()
-	framework.ExpectNoError(err)
+	if err != nil {
+		return 0
+	}
 
 	regex := regexp.MustCompile(`PID\s*:\s*(\d+)`)
 	matches := regex.FindStringSubmatch(string(stdout))
-	gomega.Expect(len(matches)).To(gomega.BeNumerically(">", 1), "Found the matched state: %q", stdout)
-	pidStr := matches[1]
+	if len(matches) <= 1 {
+		return 0
+	}
 
-	pid, err := strconv.Atoi(pidStr)
-	framework.ExpectNoError(err)
-
+	pid, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return 0
+	}
 	return pid
 }
 
-// killProcessByPID kills the process with the given PID.
+// killProcessByPID kills the process with the given PID. A "process not found"
+// outcome is treated as success — by the time we taskkill, the kubelet may
+// already have exited on its own (e.g. in response to an earlier sc.exe stop).
 func killProcessByPID(pid int) {
+	if pid <= 0 {
+		return
+	}
 	cmdLine := []string{"taskkill", "/F", "/PID", strconv.Itoa(pid)}
 
-	// kubelet service should have already been registered
-	_, err := exec.Command(cmdLine[0], cmdLine[1:]...).CombinedOutput()
-	framework.ExpectNoError(err)
+	stdout, err := exec.Command(cmdLine[0], cmdLine[1:]...).CombinedOutput()
+	if err == nil {
+		return
+	}
+	// taskkill returns non-zero with "not found" / "no running instance" when the
+	// process has already exited. That's the state we wanted, so swallow it.
+	out := strings.ToLower(string(stdout))
+	if strings.Contains(out, "not found") || strings.Contains(out, "no running") {
+		return
+	}
+	framework.ExpectNoError(err, "taskkill failed for PID %d: %s", pid, string(stdout))
 }
 
 // findKubeletServiceState searches for the state of the kubelet service.
@@ -142,6 +159,53 @@ func findKubeletServiceState() string {
 	return state
 }
 
+// stopKubeletService stops the kubelet Windows service and waits until SCM
+// reports it as STOPPED. sc.exe stop is asynchronous: the service typically
+// transitions RUNNING -> STOP_PENDING -> STOPPED. Issuing sc.exe start while
+// SCM still considers the service running yields error 1056
+// ("An instance of the service is already running"), so we must gate the next
+// start on the SCM state, not on the HTTP health probe (which goes down well
+// before SCM finishes the transition).
+func stopKubeletService(ctx context.Context) {
+	state := findKubeletServiceState()
+	if strings.EqualFold(state, "STOPPED") {
+		return
+	}
+
+	if strings.EqualFold(state, "RUNNING") {
+		stdout, err := exec.CommandContext(ctx, "sc.exe", "stop", kubeletServiceName).CombinedOutput()
+		framework.ExpectNoError(err, "Failed to stop kubelet service: %v, %s", err, string(stdout))
+	}
+
+	// Wait for SCM to report STOPPED. If it stays in STOP_PENDING for too long,
+	// fall back to forcibly killing the kubelet process.
+	const (
+		stopTimeout = 30 * time.Second
+		stopPoll    = 250 * time.Millisecond
+	)
+	deadline := time.Now().Add(stopTimeout)
+	for time.Now().Before(deadline) {
+		if strings.EqualFold(findKubeletServiceState(), "STOPPED") {
+			return
+		}
+		time.Sleep(stopPoll)
+	}
+
+	// Stuck in STOP_PENDING — force-kill the process and re-check.
+	killProcessByPID(getKubeletServicePID())
+	gomega.Eventually(ctx, func() string {
+		return strings.ToUpper(findKubeletServiceState())
+	}, 10*time.Second, stopPoll).Should(gomega.Equal("STOPPED"), "kubelet service did not reach STOPPED state")
+}
+
+// startKubeletService starts the kubelet Windows service and waits for the
+// kubelet HTTP health check to succeed.
+func startKubeletService(ctx context.Context, f *framework.Framework) {
+	stdout, err := exec.CommandContext(ctx, "sc.exe", "start", kubeletServiceName).CombinedOutput()
+	framework.ExpectNoError(err, "Failed to start kubelet service with sc.exe: %v, %s", err, string(stdout))
+	waitForKubeletToStart(ctx, f)
+}
+
 // restartKubelet restarts the current kubelet service.
 // the "current" kubelet service is the instance managed by the current e2e_node test run.
 // If `running` is true, restarts only if the current kubelet is actually running. In some cases,
@@ -151,19 +215,7 @@ func findKubeletServiceState() string {
 // recent kubelet service unit, IOW there is not a unique ID we use to bind explicitly a kubelet
 // instance to a test run.
 func restartKubelet(ctx context.Context, running bool) {
-	// Check the state of the kubelet service
-	state := findKubeletServiceState()
-
-	if strings.EqualFold(state, "RUNNING") {
-		// stop the kubelet service
-		stdout, err := exec.CommandContext(ctx, "sc.exe", "stop", kubeletServiceName).CombinedOutput()
-		framework.ExpectNoError(err, "Failed to stop kubelet service: %v, %s", err, string(stdout))
-	}
-	if strings.EqualFold(state, "STOP_PENDING") {
-		// stop the kubelet service
-		pid := getKubeletServicePID()
-		killProcessByPID(pid)
-	}
+	stopKubeletService(ctx)
 
 	stdout, err := exec.CommandContext(ctx, "sc.exe", "start", kubeletServiceName).CombinedOutput()
 	framework.ExpectNoError(err, "Failed to restart kubelet with systemctl: %v, %v", err, stdout)
@@ -171,29 +223,16 @@ func restartKubelet(ctx context.Context, running bool) {
 
 // mustStopKubelet will kill the running kubelet, and returns a func that will restart the process again
 func mustStopKubelet(ctx context.Context, f *framework.Framework) func(ctx context.Context) {
-	state := findKubeletServiceState()
+	stopKubeletService(ctx)
 
-	if strings.EqualFold(state, "RUNNING") {
-		// stop the kubelet service
-		stdout, err := exec.CommandContext(ctx, "sc.exe", "stop", kubeletServiceName).CombinedOutput()
-		framework.ExpectNoError(err, "Failed to stop kubelet service: %v, %s", err, string(stdout))
-	}
-	if strings.EqualFold(state, "STOP_PENDING") {
-		// stop the kubelet service
-		pid := getKubeletServicePID()
-		killProcessByPID(pid)
-	}
-
-	// wait until the kubelet health check fail
+	// Belt-and-braces: ensure the HTTP health endpoint is also down before
+	// returning, since that is the surface the next test will probe.
 	gomega.Eventually(ctx, func() bool {
 		return kubeletHealthCheck(kubeletHealthCheckURL)
 	}, f.Timeouts.PodStart, f.Timeouts.Poll).Should(gomega.BeFalseBecause("kubelet was expected to be stopped but it is still running"))
 
 	return func(ctx context.Context) {
-		// we should restart service, otherwise the transient service start will fail
-		stdout, err := exec.CommandContext(ctx, "sc.exe", "start", kubeletServiceName).CombinedOutput()
-		framework.ExpectNoError(err, "Failed to start kubelet service with sc.exe: %v, %s", err, string(stdout))
-		waitForKubeletToStart(ctx, f)
+		startKubeletService(ctx, f)
 	}
 }
 
