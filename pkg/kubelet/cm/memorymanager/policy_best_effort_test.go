@@ -44,6 +44,11 @@ func (f *fakeBestEffortAffinity) GetAffinity(_ klog.Logger, podUID, containerNam
 func (f *fakeBestEffortAffinity) GetPolicy() topologymanager.Policy { return nil }
 func (f *fakeBestEffortAffinity) Name() string                      { return "fake" }
 
+// HasExclusiveCPUs mirrors the Windows cpuFollowingStore: when the container is
+// following the CPU manager's NUMA decision, the memory manager must not extend
+// its hint to additional NUMA nodes.
+func (f *fakeBestEffortAffinity) HasExclusiveCPUs(_, _ string) bool { return f.hasExclusiveCPUs }
+
 // bestEffortTestMachineState returns a fresh 2-NUMA-node state: node 0 has only
 // 1Gi free (too little for the 4Gi request), node 1 has 10Gi free.
 func bestEffortTestMachineState() state.NUMANodeMap {
@@ -75,9 +80,11 @@ func bestEffortTestMachineState() state.NUMANodeMap {
 	}
 }
 
-// TestBestEffortPolicyAllocateAlwaysMatchesStatic verifies that the Windows
-// BestEffort policy now delegates allocation behavior to staticPolicy.Allocate.
-func TestBestEffortPolicyAllocateAlwaysMatchesStatic(t *testing.T) {
+// TestBestEffortPolicyAllocateFollowsCPUManager verifies that the Windows
+// BestEffort policy skips hint extension when the container follows the CPU
+// manager's NUMA decision (it owns exclusive CPUs), and otherwise extends like
+// the static policy.
+func TestBestEffortPolicyAllocateFollowsCPUManager(t *testing.T) {
 	logger, _ := ktesting.NewTestContext(t)
 
 	machineInfo := &cadvisorapi.MachineInfo{
@@ -109,12 +116,12 @@ func TestBestEffortPolicyAllocateAlwaysMatchesStatic(t *testing.T) {
 		expectedNUMA     []int
 	}{
 		{
-			name:             "has exclusive CPUs: still follows static allocation behavior",
+			name:             "has exclusive CPUs: follows CPU manager, no hint extension",
 			hasExclusiveCPUs: true,
-			expectedNUMA:     []int{0, 1},
+			expectedNUMA:     []int{0},
 		},
 		{
-			name:             "no exclusive CPUs: same static allocation behavior",
+			name:             "no exclusive CPUs: extends like the static policy",
 			hasExclusiveCPUs: false,
 			expectedNUMA:     []int{0, 1},
 		},
